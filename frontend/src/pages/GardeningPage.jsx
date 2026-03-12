@@ -39,8 +39,8 @@ const GardeningPage = () => {
             const response = await axios.post('http://localhost:5000/api/analyze-plant', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            if (response.data.success) {
-                setAnalysisResult(response.data.analysis);
+            if (response.data.success !== false) {
+                setAnalysisResult(response.data);
             } else {
                 setError(response.data.error || 'Analysis failed. Please try again.');
             }
@@ -132,14 +132,40 @@ const GardeningPage = () => {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="glass-card"
-                    style={{ padding: '40px', borderLeft: '5px solid #2e7d32', marginBottom: '40px' }}
+                    style={{ marginBottom: '40px' }}
                 >
-                    <h3 style={{ marginBottom: '20px', color: '#1b5e20', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <ShieldCheck size={24} /> 🌿 AI Plant Care Report
-                    </h3>
-                    <div style={{ lineHeight: '1.75', fontSize: '1.02rem', color: '#333' }}>
-                        <ReactMarkdown>{analysisResult}</ReactMarkdown>
+                    <div className="glass-card" style={{ padding: '40px', borderLeft: '5px solid #2e7d32' }}>
+                        <h3 style={{ color: '#1b5e20', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '25px' }}>
+                            <Leaf size={28} /> AI Plant Health Report
+                        </h3>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '30px' }}>
+                            <div>
+                                <h4 style={{ marginBottom: '10px' }}>Current Condition</h4>
+                                <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1b5e20' }}>{analysisResult.condition}</p>
+
+                                <h4 style={{ marginTop: '25px', marginBottom: '10px' }}>⚠️ Warnings</h4>
+                                <p style={{ color: '#c62828', fontWeight: '600' }}>{analysisResult.warnings}</p>
+                            </div>
+
+                            <div>
+                                <h4 style={{ marginBottom: '10px' }}>🛠️ Care Steps</h4>
+                                <ul style={{ paddingLeft: '20px', color: '#333' }}>
+                                    {analysisResult.careSteps?.map((item, i) => <li key={i} style={{ marginBottom: '5px' }}>{item}</li>)}
+                                </ul>
+
+                                <div style={{ display: 'flex', gap: '30px', marginTop: '25px' }}>
+                                    <div>
+                                        <h4 style={{ fontSize: '0.9rem', color: '#666', marginBottom: '5px' }}><Droplets size={16} /> Watering</h4>
+                                        <p style={{ fontWeight: '600' }}>{analysisResult.watering}</p>
+                                    </div>
+                                    <div>
+                                        <h4 style={{ fontSize: '0.9rem', color: '#666', marginBottom: '5px' }}><Sun size={16} /> Sunlight</h4>
+                                        <p style={{ fontWeight: '600' }}>{analysisResult.sunlight}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </motion.div>
             )}

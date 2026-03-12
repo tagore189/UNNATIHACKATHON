@@ -74,37 +74,38 @@ const Navbar = () => {
                         </Link>
                     ))}
                 </div>
-                
-                {/* Language Translator Dropdown */}
-                <div style={{ marginLeft: '15px', display: 'flex', alignItems: 'center' }}>
+
+                <div className="language-container">
                     <div id="google_translate_element" style={{ display: 'none' }}></div>
-                    <select 
-                        className="language-selector" 
-                        value={userLang}
-                        onChange={handleLanguageChange}
-                        style={{ 
-                            padding: '8px 12px', 
-                            borderRadius: '8px', 
-                            border: '1px solid #2e7d32', 
-                            backgroundColor: '#e8f5e9',
-                            color: '#1b5e20',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            outline: 'none'
-                        }}
-                    >
-                        <option value="en">English</option>
-                        <option value="hi">हिंदी (Hindi)</option>
-                        <option value="te">తెలుగు (Telugu)</option>
-                        <option value="ta">தமிழ் (Tamil)</option>
-                        <option value="kn">ಕನ್ನಡ (Kannada)</option>
-                        <option value="mr">मराठी (Marathi)</option>
-                        <option value="gu">ગુજરાતી (Gujarati)</option>
-                        <option value="bn">বাংলা (Bengali)</option>
-                        <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
-                        <option value="ml">മലയാളം (Malayalam)</option>
-                        <option value="or">ଓଡ଼ିଆ (Odia)</option>
-                    </select>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#2e7d32', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                        <Languages size={18} />
+                        <select
+                            className="language-selector"
+                            value={userLang}
+                            onChange={handleLanguageChange}
+                            style={{
+                                padding: '6px 10px',
+                                borderRadius: '8px',
+                                border: '1px solid #c8e6c9',
+                                backgroundColor: '#f1f8e9',
+                                color: '#2e7d32',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <option value="en">English (Default)</option>
+                            <option value="te">తెలుగు (Telugu)</option>
+                            <option value="hi">हिंदी (Hindi)</option>
+                            <option value="ta">தமிழ் (Tamil)</option>
+                            <option value="kn">ಕನ್ನಡ (Kannada)</option>
+                            <option value="mr">मराठी (Marathi)</option>
+                            <option value="gu">ગુજરાતી (Gujarati)</option>
+                            <option value="bn">বাংলা (Bengali)</option>
+                            <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+                            <option value="ml">മലയാളം (Malayalam)</option>
+                            <option value="or">ଓଡ଼ିଆ (Odia)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </nav>

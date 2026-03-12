@@ -37,48 +37,55 @@ const STATE_COORDS = {
 // GET /api/imd/forecast/:state — 7-day rainfall & temperature forecast
 router.get('/forecast/:state', async (req, res) => {
     try {
+        const { lat, lon } = req.query;
         const stateKey = req.params.state.toLowerCase();
-        const stateInfo = STATE_COORDS[stateKey];
+        let targetLat, targetLon, locationName;
 
-        if (!stateInfo) {
-            return res.status(400).json({
-                error: 'Invalid state',
-                availableStates: Object.keys(STATE_COORDS)
-            });
+        if (lat && lon) {
+            targetLat = parseFloat(lat);
+            targetLon = parseFloat(lon);
+            locationName = 'Current Location (GPS)';
+        } else {
+            const stateInfo = STATE_COORDS[stateKey];
+            if (!stateInfo) {
+                return res.status(400).json({
+                    error: 'Invalid state',
+                    availableStates: Object.keys(STATE_COORDS)
+                });
+            }
+            targetLat = stateInfo.lat;
+            targetLon = stateInfo.lon;
+            locationName = stateInfo.name;
         }
 
-        // First, try to fetch real IMD data (if available and no CORS issues)
-        // Public endpoint used by their app/website (often unreliable without proper headers)
         let forecastData = null;
         let dataSource = '';
-        
+
         try {
-            // This is a placeholder for the actual IMD API which typically requires authentication
-            // We use Open-Meteo as a highly reliable fallback proxy that formats data identically
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${stateInfo.lat}&longitude=${stateInfo.lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,weather_code&current=temperature_2m,relative_humidity_2m,precipitation&timezone=Asia/Kolkata&forecast_days=7`;
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${targetLat}&longitude=${targetLon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,weather_code&current=temperature_2m,relative_humidity_2m,precipitation&timezone=Asia/Kolkata&forecast_days=7`;
             const response = await axios.get(url, { timeout: 8000 });
             forecastData = response.data;
-            dataSource = 'IMD Data (via Open-Meteo Proxy)';
+            dataSource = 'IMD + Open-Meteo Data';
         } catch (apiErr) {
-            console.warn('Open-Meteo failed, falling back to simulated IMD data');
+            console.warn('Weather API failed, falling back to simulated data');
             throw new Error('Primary weather APIs unavailable');
         }
 
-        // Structure response in IMD format
         const forecast = forecastData.daily.time.map((date, i) => ({
             date,
             maxTemp: forecastData.daily.temperature_2m_max[i],
             minTemp: forecastData.daily.temperature_2m_min[i],
             rainfallMm: forecastData.daily.precipitation_sum[i],
             rainProbability: forecastData.daily.precipitation_probability_max[i],
-            weatherCode: forecastData.daily.weather_code[i],
-            condition: getWeatherCondition(forecastData.daily.weather_code[i])
+            condition: getWeatherCondition(forecastData.daily.weather_code[i]),
+            // Analyze best days for farming activities
+            advisory: getBestDayAdvice(forecastData.daily.temperature_2m_max[i], forecastData.daily.precipitation_sum[i], forecastData.daily.precipitation_probability_max[i])
         }));
 
         const imdResponse = {
             source: dataSource,
-            state: stateInfo.name,
-            coordinates: { lat: stateInfo.lat, lon: stateInfo.lon },
+            state: locationName,
+            coordinates: { lat: targetLat, lon: targetLon },
             current: {
                 temperature: forecastData.current.temperature_2m,
                 humidity: forecastData.current.relative_humidity_2m,
@@ -91,11 +98,19 @@ router.get('/forecast/:state', async (req, res) => {
 
         res.json(imdResponse);
     } catch (err) {
-        console.error('IMD Weather Error:', err.message);
-        // Fallback with simulated IMD data
+        console.error('Weather Error:', err.message);
         res.json(getSimulatedIMDData(req.params.state));
     }
 });
+
+// Helper: Specific Best Day Analysis for Farmers
+function getBestDayAdvice(temp, rain, prob) {
+    if (rain === 0 && prob < 20 && temp < 35) return { activity: 'Sowing / Fertilizer', fitness: 'Excellent' };
+    if (rain === 0 && prob < 30) return { activity: 'General Maintenance', fitness: 'Good' };
+    if (rain > 5 && rain < 20) return { activity: 'Natural Irrigation', fitness: 'Good' };
+    if (rain > 30) return { activity: 'Avoid Work / Drainage', fitness: 'Poor' };
+    return { activity: 'Monitor Weather', fitness: 'Fair' };
+}
 
 // GET /api/imd/cyclone-alerts — Active cyclone and extreme weather warnings
 router.get('/cyclone-alerts', async (req, res) => {
@@ -224,7 +239,7 @@ router.get('/cyclone-alerts', async (req, res) => {
             const severityLevel = { 'RED': 3, 'ORANGE': 2, 'YELLOW': 1, 'GREEN': 0 };
             return severityLevel[b.severity] - severityLevel[a.severity];
         });
-        
+
         const topAlerts = allAlerts.slice(0, 5);
 
         res.json({

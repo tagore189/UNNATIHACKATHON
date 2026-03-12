@@ -33,43 +33,13 @@ export const useLocationLanguage = () => {
     const [locationLoaded, setLocationLoaded] = useState(!!localStorage.getItem('userState'));
 
     useEffect(() => {
-        // If we already detected the language before, don't ping API again
-        if (locationLoaded) return;
-
-        const detectLocation = async () => {
-            try {
-                // Determine rough location using coarse IP geolocation (free, no key needed)
-                const res = await axios.get('https://ipapi.co/json/');
-                
-                if (res.data && res.data.country_code === 'IN' && res.data.region) {
-                    const stateName = res.data.region.toLowerCase();
-                    setUserState(res.data.region);
-                    localStorage.setItem('userState', res.data.region);
-
-                    // Check if state has a mapped local language
-                    let detectedLang = 'en'; // default
-                    
-                    for (const [key, langCode] of Object.entries(stateLanguageMap)) {
-                        if (stateName.includes(key)) {
-                            detectedLang = langCode;
-                            break;
-                        }
-                    }
-
-                    // Only set if not already manually chosen
-                    if (!localStorage.getItem('userLanguage')) {
-                        setUserLang(detectedLang);
-                        localStorage.setItem('userLanguage', detectedLang);
-                    }
-                }
-            } catch (err) {
-                console.error('Location detection failed:', err);
-            } finally {
-                setLocationLoaded(true);
-            }
-        };
-
-        detectLocation();
+        // We've disabled automatic IP discovery to prevent unwanted language switching.
+        // The language will now only be set by the user's manual choice or default to 'en'.
+        if (!localStorage.getItem('userLanguage')) {
+            setUserLang('en');
+            localStorage.setItem('userLanguage', 'en');
+        }
+        setLocationLoaded(true);
     }, [locationLoaded]);
 
     const changeLanguage = (langCode) => {
