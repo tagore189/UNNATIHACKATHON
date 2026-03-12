@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sprout, CloudSun, Lightbulb, Bug, Droplets, ShieldAlert, TrendingUp, FlaskConical, Satellite, Languages } from 'lucide-react';
+import { Sprout, CloudSun, Lightbulb, Bug, Droplets, ShieldAlert, TrendingUp, FlaskConical, Satellite, Languages, Flower2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
@@ -118,6 +118,14 @@ const Dashboard = () => {
             desc: 'Local pest outbreak notifications and preventive measures for your area.',
             metric: 'Alert Active',
             badge: '🛡️'
+        },
+        {
+            title: 'Gardening Assistant',
+            icon: <Flower2 color="#e91e63" size={32} />,
+            path: '/gardening',
+            desc: 'AI-powered plant care for home gardeners — analyse plant health, get manure & watering tips.',
+            metric: 'AI Powered',
+            badge: '🪴'
         }
     ];
 

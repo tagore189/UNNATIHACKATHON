@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, CloudSun, Sprout, Bug, Droplets,
     ShieldAlert, TrendingUp, Lightbulb,
-    FlaskConical, Satellite, Languages
+    FlaskConical, Satellite, Languages, Flower2
 } from 'lucide-react';
 import { useLocationLanguage } from '../hooks/useLocationLanguage';
 
@@ -51,6 +51,7 @@ const Navbar = () => {
         { path: '/disease-detection', label: 'Disease', icon: <Bug size={20} /> },
         { path: '/irrigation', label: 'Irrigation', icon: <Droplets size={20} /> },
         { path: '/pest-alerts', label: 'Pest Alerts', icon: <ShieldAlert size={20} /> },
+        { path: '/gardening', label: 'Gardening', icon: <Flower2 size={20} /> },
         { path: '/sustainability', label: 'Tips', icon: <Lightbulb size={20} /> },
     ];
 

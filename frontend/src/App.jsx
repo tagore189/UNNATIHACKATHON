@@ -12,7 +12,9 @@ import SustainabilityPage from './pages/SustainabilityPage';
 import SoilHealthPage from './pages/SoilHealthPage';
 import SatelliteMapPage from './pages/SatelliteMapPage';
 import LanguagePage from './pages/LanguagePage';
+import GardeningPage from './pages/GardeningPage';
 import Navbar from './components/Navbar';
+
 const AppLayout = ({ children }) => (
   <>
     <Navbar />
@@ -36,6 +38,7 @@ const App = () => {
         <Route path="/soil-health" element={<AppLayout><SoilHealthPage /></AppLayout>} />
         <Route path="/satellite-map" element={<AppLayout><SatelliteMapPage /></AppLayout>} />
         <Route path="/language-tool" element={<AppLayout><LanguagePage /></AppLayout>} />
+        <Route path="/gardening" element={<AppLayout><GardeningPage /></AppLayout>} />
       </Routes>
     </Router>
   );

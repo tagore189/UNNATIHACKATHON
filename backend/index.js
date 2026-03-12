@@ -28,6 +28,9 @@ app.use('/api/enam', require('./routes/enam'));
 app.use('/api/bhuvan', require('./routes/bhuvan'));
 app.use('/api/language', require('./routes/ai4bharat'));
 
+// AI Analysis route (Gemini)
+app.use('/api/analyze-plant', require('./routes/aiAnalysis'));
+
 app.get('/', (req, res) => {
     res.send('AgriGuard API is running');
 });
