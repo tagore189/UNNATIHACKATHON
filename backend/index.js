@@ -21,6 +21,13 @@ mongoose.connect(process.env.MONGODB_URI)
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/crops', require('./routes/cropRoutes'));
 
+// Indian Data Source APIs
+app.use('/api/imd', require('./routes/imdWeather'));
+app.use('/api/soil-health', require('./routes/soilHealth'));
+app.use('/api/enam', require('./routes/enam'));
+app.use('/api/bhuvan', require('./routes/bhuvan'));
+app.use('/api/language', require('./routes/ai4bharat'));
+
 app.get('/', (req, res) => {
     res.send('AgriGuard API is running');
 });

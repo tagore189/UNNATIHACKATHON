@@ -11,10 +11,12 @@ import IrrigationPage from './pages/IrrigationPage';
 import PestAlertsPage from './pages/PestAlertsPage';
 import MarketPricePage from './pages/MarketPricePage';
 import SustainabilityPage from './pages/SustainabilityPage';
+import SoilHealthPage from './pages/SoilHealthPage';
+import SatelliteMapPage from './pages/SatelliteMapPage';
+import LanguagePage from './pages/LanguagePage';
 import Navbar from './components/Navbar';
 
 const App = () => {
-  // Protected Route wrapper component
   const ProtectedRoute = ({ children }) => {
     const user = localStorage.getItem('user');
     if (!user) return <Navigate to="/login" />;
@@ -42,6 +44,11 @@ const App = () => {
         <Route path="/pest-alerts" element={<ProtectedRoute><PestAlertsPage /></ProtectedRoute>} />
         <Route path="/market-prices" element={<ProtectedRoute><MarketPricePage /></ProtectedRoute>} />
         <Route path="/sustainability" element={<ProtectedRoute><SustainabilityPage /></ProtectedRoute>} />
+
+        {/* New Indian Data Source Routes */}
+        <Route path="/soil-health" element={<ProtectedRoute><SoilHealthPage /></ProtectedRoute>} />
+        <Route path="/satellite-map" element={<ProtectedRoute><SatelliteMapPage /></ProtectedRoute>} />
+        <Route path="/language-tool" element={<ProtectedRoute><LanguagePage /></ProtectedRoute>} />
       </Routes>
     </Router>
   );
