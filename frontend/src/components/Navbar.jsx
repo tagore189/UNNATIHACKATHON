@@ -1,18 +1,43 @@
-import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, CloudSun, Sprout, Bug, Droplets,
-    ShieldAlert, TrendingUp, Lightbulb, LogOut,
+    ShieldAlert, TrendingUp, Lightbulb,
     FlaskConical, Satellite, Languages
 } from 'lucide-react';
+import { useLocationLanguage } from '../hooks/useLocationLanguage';
 
 const Navbar = () => {
-    const navigate = useNavigate();
     const location = useLocation();
+    const { userLang, changeLanguage, locationLoaded } = useLocationLanguage();
+    const translationAttempted = useRef(false);
 
-    const handleLogout = () => {
-        localStorage.clear();
-        navigate('/');
+    useEffect(() => {
+        // Auto-trigger Google Translate when language is detected
+        if (locationLoaded && userLang !== 'en' && !translationAttempted.current) {
+            const triggerTranslation = setInterval(() => {
+                const select = document.querySelector('.goog-te-combo');
+                if (select) {
+                    select.value = userLang;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    translationAttempted.current = true;
+                    clearInterval(triggerTranslation);
+                }
+            }, 500); // Check every half second until widget loads
+
+            // Cleanup
+            setTimeout(() => clearInterval(triggerTranslation), 5000);
+        }
+    }, [userLang, locationLoaded]);
+
+    const handleLanguageChange = (e) => {
+        const lang = e.target.value;
+        changeLanguage(lang);
+        const select = document.querySelector('.goog-te-combo');
+        if (select) {
+            select.value = lang;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
     };
 
     const navLinks = [
@@ -48,10 +73,38 @@ const Navbar = () => {
                         </Link>
                     ))}
                 </div>
-                <button onClick={handleLogout} className="logout-btn">
-                    <LogOut size={20} />
-                    <span>Logout</span>
-                </button>
+                
+                {/* Language Translator Dropdown */}
+                <div style={{ marginLeft: '15px', display: 'flex', alignItems: 'center' }}>
+                    <div id="google_translate_element" style={{ display: 'none' }}></div>
+                    <select 
+                        className="language-selector" 
+                        value={userLang}
+                        onChange={handleLanguageChange}
+                        style={{ 
+                            padding: '8px 12px', 
+                            borderRadius: '8px', 
+                            border: '1px solid #2e7d32', 
+                            backgroundColor: '#e8f5e9',
+                            color: '#1b5e20',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            outline: 'none'
+                        }}
+                    >
+                        <option value="en">English</option>
+                        <option value="hi">हिंदी (Hindi)</option>
+                        <option value="te">తెలుగు (Telugu)</option>
+                        <option value="ta">தமிழ் (Tamil)</option>
+                        <option value="kn">ಕನ್ನಡ (Kannada)</option>
+                        <option value="mr">मराठी (Marathi)</option>
+                        <option value="gu">ગુજરાતી (Gujarati)</option>
+                        <option value="bn">বাংলা (Bengali)</option>
+                        <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+                        <option value="ml">മലയാളം (Malayalam)</option>
+                        <option value="or">ଓଡ଼ିଆ (Odia)</option>
+                    </select>
+                </div>
             </div>
         </nav>
     );

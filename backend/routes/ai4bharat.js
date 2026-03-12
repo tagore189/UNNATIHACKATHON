@@ -82,48 +82,66 @@ router.post('/translate', async (req, res) => {
             return res.status(400).json({ error: 'text, sourceLang, and targetLang are required' });
         }
 
-        // TODO: Replace with real AI4Bharat IndicTrans2 API
-        // Real endpoint: https://api.ai4bharat.org/inference/translation
-        // For now, use local translation dictionary for farming phrases
-
         let translatedText = '';
         let method = '';
 
-        if (sourceLang === 'en' && FARMING_TRANSLATIONS[targetLang]) {
-            const exact = FARMING_TRANSLATIONS[targetLang][text];
-            if (exact) {
-                translatedText = exact;
-                method = 'ai4bharat_dictionary';
-            } else {
-                // Fuzzy match
-                const key = Object.keys(FARMING_TRANSLATIONS[targetLang]).find(
-                    k => k.toLowerCase().includes(text.toLowerCase().substring(0, 15))
-                );
-                translatedText = key ? FARMING_TRANSLATIONS[targetLang][key] : `[${SUPPORTED_LANGUAGES.find(l => l.code === targetLang)?.nativeName || targetLang}] ${text}`;
-                method = key ? 'ai4bharat_fuzzy' : 'placeholder';
-            }
-        } else if (targetLang === 'en') {
-            // Reverse lookup
-            for (const [lang, phrases] of Object.entries(FARMING_TRANSLATIONS)) {
-                if (lang === sourceLang) {
-                    const entry = Object.entries(phrases).find(([_, v]) => v === text);
-                    if (entry) { translatedText = entry[0]; method = 'ai4bharat_reverse'; break; }
+        try {
+            // Use MyMemory Translation API (Free, no key required for < 500 words/day)
+            // https://mymemory.translated.net/doc/spec.php
+            const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`;
+            
+            const response = await axios.get(apiUrl, { timeout: 8000 });
+            
+            if (response.data && response.data.responseData && response.data.responseData.translatedText) {
+                translatedText = response.data.responseData.translatedText;
+                
+                // MyMemory sometimes returns an exact match of the English string if it fails
+                if (translatedText === text && sourceLang !== targetLang) {
+                    throw new Error("MyMemory returned untranslated text");
                 }
+                
+                method = 'mymemory_api';
+            } else {
+                throw new Error("Invalid response from MyMemory");
             }
-            if (!translatedText) { translatedText = `[English Translation] ${text}`; method = 'placeholder'; }
-        } else {
-            translatedText = `[Translation: ${sourceLang} → ${targetLang}] ${text}`;
-            method = 'placeholder';
+        } catch (apiError) {
+            console.warn(`MyMemory API failed, falling back to local dictionary. Error: ${apiError.message}`);
+            // Fallback to local dictionary for demo/farming phrases if API fails
+            if (sourceLang === 'en' && FARMING_TRANSLATIONS[targetLang]) {
+                const exact = FARMING_TRANSLATIONS[targetLang][text];
+                if (exact) {
+                    translatedText = exact;
+                    method = 'ai4bharat_dictionary_fallback';
+                } else {
+                    // Try to find a partial match
+                    const key = Object.keys(FARMING_TRANSLATIONS[targetLang]).find(
+                        k => k.toLowerCase().includes(text.toLowerCase().substring(0, 15))
+                    );
+                    translatedText = key ? FARMING_TRANSLATIONS[targetLang][key] : `[Offline translation unavailable] ${text}`;
+                    method = key ? 'ai4bharat_fuzzy_fallback' : 'untranslated';
+                }
+            } else if (targetLang === 'en') {
+                for (const [lang, phrases] of Object.entries(FARMING_TRANSLATIONS)) {
+                    if (lang === sourceLang) {
+                        const entry = Object.entries(phrases).find(([_, v]) => v === text);
+                        if (entry) { translatedText = entry[0]; method = 'ai4bharat_reverse_fallback'; break; }
+                    }
+                }
+                if (!translatedText) { translatedText = `[Offline translation unavailable] ${text}`; method = 'untranslated'; }
+            } else {
+                translatedText = `[Offline translation unavailable] ${text}`;
+                method = 'untranslated';
+            }
         }
 
         res.json({
-            source: 'AI4Bharat IndicTrans2',
+            source: method === 'mymemory_api' ? 'MyMemory API' : 'AI4Bharat IndicTrans2 Local',
             original: text,
             translated: translatedText,
             sourceLang: SUPPORTED_LANGUAGES.find(l => l.code === sourceLang) || { code: sourceLang },
             targetLang: SUPPORTED_LANGUAGES.find(l => l.code === targetLang) || { code: targetLang },
             method,
-            confidence: method === 'ai4bharat_dictionary' ? 0.95 : method === 'ai4bharat_fuzzy' ? 0.7 : 0.5
+            confidence: method.includes('dictionary') ? 0.95 : method.includes('fuzzy') ? 0.7 : method === 'mymemory_api' ? 0.9 : 0.0
         });
     } catch (err) {
         console.error('Translation Error:', err.message);

@@ -12,8 +12,7 @@ const LandingPage = () => {
                     <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#1b5e20' }}>AgriGuard</h2>
                 </div>
                 <div style={{ display: 'flex', gap: '20px' }}>
-                    <Link to="/login" style={{ textDecoration: 'none', color: '#2e7d32', fontWeight: '600' }}>Login</Link>
-                    <Link to="/signup" className="btn-primary" style={{ textDecoration: 'none' }}>Get Started</Link>
+                    <Link to="/dashboard" className="btn-primary" style={{ textDecoration: 'none' }}>Go to Dashboard</Link>
                 </div>
             </nav>
 
@@ -39,7 +38,7 @@ const LandingPage = () => {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.4 }}
                 >
-                    <Link to="/signup" className="btn-primary" style={{ fontSize: '1.2rem', padding: '15px 40px', textDecoration: 'none' }}>Start Your Journey</Link>
+                    <Link to="/dashboard" className="btn-primary" style={{ fontSize: '1.2rem', padding: '15px 40px', textDecoration: 'none' }}>Start Your Journey</Link>
                 </motion.div>
             </header>
 

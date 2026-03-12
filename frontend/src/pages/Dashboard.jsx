@@ -1,10 +1,50 @@
+import { useState, useEffect } from 'react';
 import { Sprout, CloudSun, Lightbulb, Bug, Droplets, ShieldAlert, TrendingUp, FlaskConical, Satellite, Languages } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 
 const Dashboard = () => {
     const user = JSON.parse(localStorage.getItem('user')) || { fullName: 'Farmer' };
     const navigate = useNavigate();
+    
+    const [weatherMetric, setWeatherMetric] = useState('Loading...');
+    const [marketMetric, setMarketMetric] = useState('Loading...');
+
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                // Fetch Market Data Overview
+                const marketRes = await axios.get('http://localhost:5000/api/enam/statistics');
+                if (marketRes.data?.overview) {
+                    setMarketMetric(`${marketRes.data.overview.totalCommoditiesTraded} Crops Live`);
+                } else {
+                    setMarketMetric('eNAM Live');
+                }
+            } catch (err) {
+                console.error("Failed to load market stats for dashboard:", err);
+                setMarketMetric('eNAM Live');
+            }
+
+            try {
+                // Fetch Weather Data for user's state (default to telangana if unknown)
+                const userStateStr = localStorage.getItem('userState') || 'telangana';
+                // Need to format state string to match IMD API keys (e.g. 'andhra-pradesh')
+                const formattedState = userStateStr.toLowerCase().replace(/\s+/g, '-');
+                const weatherRes = await axios.get(`http://localhost:5000/api/imd/forecast/${formattedState}`);
+                if (weatherRes.data?.current) {
+                    setWeatherMetric(`${Math.round(weatherRes.data.current.temperature)}°C | ${weatherRes.data.current.precipitation > 0 ? 'Rain' : 'Clear'}`);
+                } else {
+                    setWeatherMetric('IMD Live');
+                }
+            } catch (err) {
+                console.error("Failed to load weather stats for dashboard:", err);
+                setWeatherMetric('IMD Live');
+            }
+        };
+
+        fetchDashboardData();
+    }, []);
 
     const modules = [
         {
@@ -12,7 +52,7 @@ const Dashboard = () => {
             icon: <CloudSun color="#2e7d32" size={32} />,
             path: '/weather',
             desc: 'IMD 7-day rainfall forecast, temperature data, cyclone alerts and farming advisories.',
-            metric: 'IMD Live',
+            metric: weatherMetric,
             badge: '🌦️'
         },
         {
@@ -20,7 +60,7 @@ const Dashboard = () => {
             icon: <TrendingUp color="#2e7d32" size={32} />,
             path: '/market-prices',
             desc: 'Live mandi prices from National Agriculture Market with MSP comparison and trade advice.',
-            metric: 'eNAM Live',
+            metric: marketMetric,
             badge: '📊'
         },
         {

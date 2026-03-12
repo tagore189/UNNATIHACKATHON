@@ -1,8 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import WeatherPage from './pages/WeatherPage';
 import CropAdvisorPage from './pages/CropAdvisorPage';
@@ -15,40 +13,29 @@ import SoilHealthPage from './pages/SoilHealthPage';
 import SatelliteMapPage from './pages/SatelliteMapPage';
 import LanguagePage from './pages/LanguagePage';
 import Navbar from './components/Navbar';
+const AppLayout = ({ children }) => (
+  <>
+    <Navbar />
+    {children}
+  </>
+);
 
 const App = () => {
-  const ProtectedRoute = ({ children }) => {
-    const user = localStorage.getItem('user');
-    if (!user) return <Navigate to="/login" />;
-    return (
-      <>
-        <Navbar />
-        {children}
-      </>
-    );
-  };
-
   return (
     <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-
-        {/* Protected Routes */}
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/weather" element={<ProtectedRoute><WeatherPage /></ProtectedRoute>} />
-        <Route path="/crop-advisor" element={<ProtectedRoute><CropAdvisorPage /></ProtectedRoute>} />
-        <Route path="/disease-detection" element={<ProtectedRoute><DiseaseDetectionPage /></ProtectedRoute>} />
-        <Route path="/irrigation" element={<ProtectedRoute><IrrigationPage /></ProtectedRoute>} />
-        <Route path="/pest-alerts" element={<ProtectedRoute><PestAlertsPage /></ProtectedRoute>} />
-        <Route path="/market-prices" element={<ProtectedRoute><MarketPricePage /></ProtectedRoute>} />
-        <Route path="/sustainability" element={<ProtectedRoute><SustainabilityPage /></ProtectedRoute>} />
-
-        {/* New Indian Data Source Routes */}
-        <Route path="/soil-health" element={<ProtectedRoute><SoilHealthPage /></ProtectedRoute>} />
-        <Route path="/satellite-map" element={<ProtectedRoute><SatelliteMapPage /></ProtectedRoute>} />
-        <Route path="/language-tool" element={<ProtectedRoute><LanguagePage /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<AppLayout><Dashboard /></AppLayout>} />
+        <Route path="/weather" element={<AppLayout><WeatherPage /></AppLayout>} />
+        <Route path="/crop-advisor" element={<AppLayout><CropAdvisorPage /></AppLayout>} />
+        <Route path="/disease-detection" element={<AppLayout><DiseaseDetectionPage /></AppLayout>} />
+        <Route path="/irrigation" element={<AppLayout><IrrigationPage /></AppLayout>} />
+        <Route path="/pest-alerts" element={<AppLayout><PestAlertsPage /></AppLayout>} />
+        <Route path="/market-prices" element={<AppLayout><MarketPricePage /></AppLayout>} />
+        <Route path="/sustainability" element={<AppLayout><SustainabilityPage /></AppLayout>} />
+        <Route path="/soil-health" element={<AppLayout><SoilHealthPage /></AppLayout>} />
+        <Route path="/satellite-map" element={<AppLayout><SatelliteMapPage /></AppLayout>} />
+        <Route path="/language-tool" element={<AppLayout><LanguagePage /></AppLayout>} />
       </Routes>
     </Router>
   );

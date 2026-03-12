@@ -63,12 +63,52 @@ const MARKET_DATA = [
     { commodity: 'Groundnut', market: 'Junagadh', state: 'Gujarat', district: 'Junagadh', minPrice: 5000, maxPrice: 5800, modalPrice: 5400, unit: 'Quintal', arrivals: 1800, msp: 6377, date: '2026-03-12' },
 ];
 
+// Generate consistent pseudo-random number based on a seed string
+function seededRandom(seedStr) {
+    let hash = 0;
+    for (let i = 0; i < seedStr.length; i++) {
+        hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
+        hash |= 0; // Convert to 32bit integer
+    }
+    const x = Math.sin(hash++) * 10000;
+    return x - Math.floor(x);
+}
+
+// Function to generate dynamic daily prices that look realistic
+const getDynamicMarketData = () => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    return MARKET_DATA.map(item => {
+        // Create a unique seed for this commodity/market/day combination
+        const seed = `${item.commodity}-${item.market}-${today}`;
+        const randomFactor = seededRandom(seed);
+        
+        // Fluctuation between -5% and +5% of base modal price
+        const fluctuationPercent = (randomFactor * 10) - 5; 
+        
+        const newModalPrice = Math.round(item.modalPrice * (1 + (fluctuationPercent / 100)));
+        const priceSpread = item.maxPrice - item.minPrice;
+        
+        return {
+            ...item,
+            date: today,
+            modalPrice: newModalPrice,
+            // Keep the spread roughly the same but shift min/max with modal
+            minPrice: Math.round(newModalPrice - (priceSpread * 0.4)),
+            maxPrice: Math.round(newModalPrice + (priceSpread * 0.6)),
+            // Randomize arrivals a bit (-20% to +20%)
+            arrivals: Math.round(item.arrivals * (0.8 + (seededRandom(seed + 'arr') * 0.4)))
+        };
+    });
+};
+
 // GET /api/enam/prices — Get mandi prices with filters
 router.get('/prices', (req, res) => {
     try {
         const { commodity, state, market } = req.query;
 
-        let filtered = [...MARKET_DATA];
+        const dynamicData = getDynamicMarketData();
+        let filtered = [...dynamicData];
 
         if (commodity) {
             filtered = filtered.filter(d => d.commodity.toLowerCase().includes(commodity.toLowerCase()));
@@ -95,7 +135,7 @@ router.get('/prices', (req, res) => {
         });
 
         res.json({
-            source: 'eNAM (National Agriculture Market)',
+            source: 'eNAM (National Agriculture Market) - Real-Time Simulation',
             totalRecords: enriched.length,
             filters: { commodity: commodity || 'All', state: state || 'All', market: market || 'All' },
             data: enriched,
@@ -119,7 +159,8 @@ router.get('/commodities', (req, res) => {
 // GET /api/enam/markets/:state — Markets in a specific state
 router.get('/markets/:state', (req, res) => {
     const state = req.params.state.toLowerCase();
-    const markets = MARKET_DATA
+    const dynamicData = getDynamicMarketData();
+    const markets = dynamicData
         .filter(d => d.state.toLowerCase().includes(state))
         .map(d => ({ market: d.market, district: d.district }));
 
@@ -135,9 +176,10 @@ router.get('/markets/:state', (req, res) => {
 
 // GET /api/enam/statistics — Overall trade statistics
 router.get('/statistics', (req, res) => {
-    const totalArrivals = MARKET_DATA.reduce((sum, d) => sum + d.arrivals, 0);
+    const dynamicData = getDynamicMarketData();
+    const totalArrivals = dynamicData.reduce((sum, d) => sum + d.arrivals, 0);
     const commodityStats = {};
-    MARKET_DATA.forEach(d => {
+    dynamicData.forEach(d => {
         if (!commodityStats[d.commodity]) {
             commodityStats[d.commodity] = { totalArrivals: 0, avgPrice: 0, count: 0, markets: [] };
         }
@@ -152,11 +194,11 @@ router.get('/statistics', (req, res) => {
     });
 
     res.json({
-        source: 'eNAM',
+        source: 'eNAM Simulation',
         overview: {
-            totalMarketsTracked: new Set(MARKET_DATA.map(d => d.market)).size,
-            totalStatesTracked: new Set(MARKET_DATA.map(d => d.state)).size,
-            totalCommoditiesTraded: new Set(MARKET_DATA.map(d => d.commodity)).size,
+            totalMarketsTracked: new Set(dynamicData.map(d => d.market)).size,
+            totalStatesTracked: new Set(dynamicData.map(d => d.state)).size,
+            totalCommoditiesTraded: new Set(dynamicData.map(d => d.commodity)).size,
             totalArrivalsQuintals: totalArrivals
         },
         commodityWise: commodityStats,

@@ -152,3 +152,16 @@ h2,
 h3 {
   color: var(--primary-dark);
 }
+
+/* Hide default Google Translate UI elements */
+.VIpgJd-ZVi9od-ORHb-OEVmcd {
+  display: none !important;
+}
+
+.goog-te-banner-frame {
+  display: none !important;
+}
+
+body {
+  top: 0px !important;
+}
