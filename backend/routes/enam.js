@@ -124,7 +124,7 @@ const MARKET_DATA = [
 
     // ── GROUNDNUT ────────────────────────────────────────────
     { commodity: 'Groundnut', market: 'Junagadh', state: 'Gujarat', district: 'Junagadh', minPrice: 5000, maxPrice: 5800, modalPrice: 5400, unit: 'Quintal', arrivals: 1800, msp: 6377, date: '2026-03-12' },
-    { commodity: 'Groundnut', market: 'Anantapur', state: 'Andhra Pradesh', district: 'Anantapur', minPrice: 5100, maxPrice: 5900, modalPrice: 5500, unit: 'Quintal', arrivals: 2400, msp: 6377, date: ''+'2026-03-12' },
+    { commodity: 'Groundnut', market: 'Anantapur', state: 'Andhra Pradesh', district: 'Anantapur', minPrice: 5100, maxPrice: 5900, modalPrice: 5500, unit: 'Quintal', arrivals: 2400, msp: 6377, date: '' + '2026-03-12' },
     { commodity: 'Groundnut', market: 'Bellary', state: 'Karnataka', district: 'Ballari', minPrice: 5050, maxPrice: 5850, modalPrice: 5450, unit: 'Quintal', arrivals: 1600, msp: 6377, date: '2026-03-12' },
     { commodity: 'Groundnut', market: 'Cuddapah', state: 'Andhra Pradesh', district: 'YSR Kadapa', minPrice: 5080, maxPrice: 5880, modalPrice: 5480, unit: 'Quintal', arrivals: 1300, msp: 6377, date: '2026-03-12' },
     { commodity: 'Groundnut', market: 'Bikaner', state: 'Rajasthan', district: 'Bikaner', minPrice: 4900, maxPrice: 5700, modalPrice: 5300, unit: 'Quintal', arrivals: 900, msp: 6377, date: '2026-03-12' },
@@ -222,6 +222,7 @@ router.get('/prices', (req, res) => {
 
         res.json({
             source: 'eNAM (National Agriculture Market) - Real-Time Simulation',
+            isDemo: true,
             totalRecords: enriched.length,
             filters: { commodity: commodity || 'All', state: state || 'All', market: market || 'All' },
             data: enriched,
