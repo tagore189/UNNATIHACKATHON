@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Sprout, Search, Info, Mic, Volume2, Square } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useLocationLanguage } from '../hooks/useLocationLanguage';
+import { useLanguage } from '../context/LanguageContext';
 import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 
 const CropAdvisorPage = () => {
     const [soilData, setSoilData] = useState({ soilType: 'Loamy', season: 'Summer', location: '' });
     const [recommendations, setRecommendations] = useState([]);
     const [loading, setLoading] = useState(false);
-    const { userLang } = useLocationLanguage();
+    const { currentLang: userLang } = useLanguage();
     const { speak, stopSpeaking, isSpeaking, startListening, isListening } = useVoiceInteraction(userLang);
 
     const handleRecommend = async (e) => {

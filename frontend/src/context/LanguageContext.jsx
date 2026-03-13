@@ -109,86 +109,96 @@ const LanguageContext = createContext();
 // Cache key for localStorage
 const getCacheKey = (lang) => `agriguard_translations_${lang}`;
 
+const STATE_LANGUAGE_MAP = {
+    'Andhra Pradesh': 'te',
+    'Telangana': 'te',
+    'Tamil Nadu': 'ta',
+    'Karnataka': 'kn',
+    'Maharashtra': 'mr',
+    'Gujarat': 'gu',
+    'West Bengal': 'bn',
+    'Punjab': 'pa',
+    'Kerala': 'ml',
+    'Odisha': 'or',
+    'Uttar Pradesh': 'hi',
+    'Madhya Pradesh': 'hi',
+    'Bihar': 'hi',
+    'Rajasthan': 'hi',
+    'Haryana': 'hi',
+    'Delhi': 'hi',
+    'Jharkhand': 'hi',
+    'Chhattisgarh': 'hi'
+};
+
 export const LanguageProvider = ({ children }) => {
     const [currentLang, setCurrentLang] = useState(localStorage.getItem('userLanguage') || 'en');
-    const [translations, setTranslations] = useState(BASE_STRINGS);
-    const [isTranslating, setIsTranslating] = useState(false);
+    
+    // Always provide the English strings so Google Translate can translate them in the DOM
+    const t = useCallback((key) => BASE_STRINGS[key] || key, []);
 
-    // Load translations when language changes
-    useEffect(() => {
-        if (currentLang === 'en') {
-            setTranslations(BASE_STRINGS);
+    const triggerGoogleTranslate = useCallback((langCode) => {
+        if (langCode === 'en') {
+            document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+            document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.' + window.location.hostname;
+            if (document.cookie.includes('googtrans') || document.documentElement.className.includes('translated-')) {
+                window.location.reload();
+            }
             return;
         }
 
-        // Check cache first
-        const cacheKey = getCacheKey(currentLang);
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-            try {
-                const parsed = JSON.parse(cached);
-                // Check if cache has all keys
-                if (Object.keys(parsed).length >= Object.keys(BASE_STRINGS).length * 0.8) {
-                    setTranslations(parsed);
-                    return;
-                }
-            } catch (e) { /* ignore parse errors */ }
-        }
-
-        // Translate using backend
-        translateAllStrings(currentLang);
-    }, [currentLang]);
-
-    const translateAllStrings = async (targetLang) => {
-        setIsTranslating(true);
-        const newTranslations = { ...BASE_STRINGS };
-        const entries = Object.entries(BASE_STRINGS);
-
-        // Translate in batches of 5 for speed
-        const batchSize = 5;
-        for (let i = 0; i < entries.length; i += batchSize) {
-            const batch = entries.slice(i, i + batchSize);
-            const promises = batch.map(async ([key, englishText]) => {
-                try {
-                    const res = await axios.post('http://localhost:5000/api/language/translate', {
-                        text: englishText,
-                        sourceLang: 'en',
-                        targetLang: targetLang
-                    });
-                    if (res.data?.translated && !res.data.translated.startsWith('[Offline')) {
-                        newTranslations[key] = res.data.translated;
-                    }
-                } catch (err) {
-                    // Keep English fallback
-                    console.warn(`Translation failed for "${key}":`, err.message);
-                }
-            });
-            await Promise.all(promises);
-        }
-
-        // Cache the translations
-        const cacheKey = getCacheKey(targetLang);
-        localStorage.setItem(cacheKey, JSON.stringify(newTranslations));
-
-        setTranslations(newTranslations);
-        setIsTranslating(false);
-    };
+        let attempts = 0;
+        const maxAttempts = 20;
+        const tryTranslate = setInterval(() => {
+            attempts++;
+            const select = document.querySelector('.goog-te-combo');
+            if (select) {
+                select.value = langCode;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+                clearInterval(tryTranslate);
+            } else if (attempts >= maxAttempts) {
+                clearInterval(tryTranslate);
+            }
+        }, 300);
+    }, []);
 
     const changeLanguage = useCallback((langCode) => {
         setCurrentLang(langCode);
         localStorage.setItem('userLanguage', langCode);
-    }, []);
+        triggerGoogleTranslate(langCode);
+    }, [triggerGoogleTranslate]);
 
-    const t = useCallback((key) => {
-        return translations[key] || BASE_STRINGS[key] || key;
-    }, [translations]);
+    // Apply translation on mount if there's a stored language
+    useEffect(() => {
+        const stored = localStorage.getItem('userLanguage');
+        if (stored && stored !== 'en') {
+            triggerGoogleTranslate(stored);
+        }
+    }, [triggerGoogleTranslate]);
+
+    // Auto-detect language based on IP location if not set yet
+    useEffect(() => {
+        const autoSetLanguage = async () => {
+            const storedLang = localStorage.getItem('userLanguage');
+            if (!storedLang) {
+                try {
+                    const res = await axios.get('https://ipapi.co/json/');
+                    const stateName = res.data.region;
+                    const detectedLang = STATE_LANGUAGE_MAP[stateName] || 'en';
+                    changeLanguage(detectedLang);
+                    localStorage.setItem('userState', stateName);
+                } catch (err) {
+                    console.warn("Could not auto-detect location for language:", err.message);
+                }
+            }
+        };
+        autoSetLanguage();
+    }, [changeLanguage]);
 
     return (
         <LanguageContext.Provider value={{
             currentLang,
             changeLanguage,
             t,
-            isTranslating,
             BASE_STRINGS
         }}>
             {children}

@@ -1,5 +1,6 @@
 const express = require('express');
 const axios = require('axios');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const router = express.Router();
 
 const SUPPORTED_LANGUAGES = [
@@ -17,6 +18,7 @@ const SUPPORTED_LANGUAGES = [
     { code: 'as', name: 'Assamese', nativeName: 'অসমীয়া' },
     { code: 'ur', name: 'Urdu', nativeName: 'اردو' }
 ];
+
 // Farming phrase translations for demo
 const FARMING_TRANSLATIONS = {
     'hi': {
@@ -86,26 +88,35 @@ router.post('/translate', async (req, res) => {
         let method = '';
 
         try {
-            // Use MyMemory Translation API (Free, no key required for < 500 words/day)
-            // https://mymemory.translated.net/doc/spec.php
-            const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`;
+            const aiKey = process.env.GEMINI_API_KEY;
+            if (!aiKey) throw new Error("GEMINI_API_KEY missing");
+
+            const genAI = new GoogleGenerativeAI(aiKey);
+            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+            const targetLangName = SUPPORTED_LANGUAGES.find(l => l.code === targetLang)?.name || targetLang;
             
-            const response = await axios.get(apiUrl, { timeout: 8000 });
-            
-            if (response.data && response.data.responseData && response.data.responseData.translatedText) {
-                translatedText = response.data.responseData.translatedText;
+            // Skip translation if same lang
+            if (sourceLang === targetLang) {
+                translatedText = text;
+                method = 'same_language';
+            } else {
+                const prompt = `Translate the following short text into ${targetLangName}. Only return the direct translation, with absolutely no quotes, markdown, or extra explanations. Text to translate: "${text}"`;
                 
-                // MyMemory sometimes returns an exact match of the English string if it fails
-                if (translatedText === text && sourceLang !== targetLang) {
-                    throw new Error("MyMemory returned untranslated text");
+                // Using a short timeout for Gemini so it falls back to dictionary fast if network issues
+                const result = await model.generateContent(prompt, { timeout: 5000 });
+                translatedText = result.response.text().trim();
+                
+                // Remove stray quotes if Gemini added them
+                if (translatedText.startsWith('"') && translatedText.endsWith('"')) {
+                    translatedText = translatedText.slice(1, -1);
                 }
                 
-                method = 'mymemory_api';
-            } else {
-                throw new Error("Invalid response from MyMemory");
+                method = 'gemini_api';
             }
+            
         } catch (apiError) {
-            console.warn(`MyMemory API failed, falling back to local dictionary. Error: ${apiError.message}`);
+            console.warn(`Translation API failed, falling back to local dictionary. Error: ${apiError.message}`);
             // Fallback to local dictionary for demo/farming phrases if API fails
             if (sourceLang === 'en' && FARMING_TRANSLATIONS[targetLang]) {
                 const exact = FARMING_TRANSLATIONS[targetLang][text];
@@ -117,7 +128,7 @@ router.post('/translate', async (req, res) => {
                     const key = Object.keys(FARMING_TRANSLATIONS[targetLang]).find(
                         k => k.toLowerCase().includes(text.toLowerCase().substring(0, 15))
                     );
-                    translatedText = key ? FARMING_TRANSLATIONS[targetLang][key] : `[Offline translation unavailable] ${text}`;
+                    translatedText = key ? FARMING_TRANSLATIONS[targetLang][key] : `[Offline] ${text}`;
                     method = key ? 'ai4bharat_fuzzy_fallback' : 'untranslated';
                 }
             } else if (targetLang === 'en') {
@@ -127,21 +138,21 @@ router.post('/translate', async (req, res) => {
                         if (entry) { translatedText = entry[0]; method = 'ai4bharat_reverse_fallback'; break; }
                     }
                 }
-                if (!translatedText) { translatedText = `[Offline translation unavailable] ${text}`; method = 'untranslated'; }
+                if (!translatedText) { translatedText = `[Offline] ${text}`; method = 'untranslated'; }
             } else {
-                translatedText = `[Offline translation unavailable] ${text}`;
+                translatedText = `[Offline] ${text}`;
                 method = 'untranslated';
             }
         }
 
         res.json({
-            source: method === 'mymemory_api' ? 'MyMemory API' : 'AI4Bharat IndicTrans2 Local',
+            source: method === 'gemini_api' ? 'Gemini AI' : 'Local Dictionary',
             original: text,
             translated: translatedText,
             sourceLang: SUPPORTED_LANGUAGES.find(l => l.code === sourceLang) || { code: sourceLang },
             targetLang: SUPPORTED_LANGUAGES.find(l => l.code === targetLang) || { code: targetLang },
             method,
-            confidence: method.includes('dictionary') ? 0.95 : method.includes('fuzzy') ? 0.7 : method === 'mymemory_api' ? 0.9 : 0.0
+            confidence: method.includes('dictionary') ? 0.95 : method.includes('fuzzy') ? 0.7 : method === 'gemini_api' ? 0.95 : 0.0
         });
     } catch (err) {
         console.error('Translation Error:', err.message);

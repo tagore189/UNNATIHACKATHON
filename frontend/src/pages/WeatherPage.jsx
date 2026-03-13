@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { CloudSun, Droplets, Thermometer, AlertTriangle, CloudRain, Wind, MapPin, Calendar, CheckCircle2, Info, Loader2, Gauge, Volume2, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLocationLanguage } from '../hooks/useLocationLanguage';
+import { useLanguage } from '../context/LanguageContext';
 import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 
 const MAJOR_CITIES = [
@@ -21,7 +21,7 @@ const WeatherPage = () => {
     const [loading, setLoading] = useState(true);
     const [states, setStates] = useState([]);
     const [error, setError] = useState(null);
-    const { userLang } = useLocationLanguage();
+    const { currentLang: userLang } = useLanguage();
     const { speak, stopSpeaking, isSpeaking } = useVoiceInteraction(userLang);
 
     useEffect(() => {

@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const Crop = require('../models/Crop');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const router = express.Router();
 
 // Get Crop Recommendations
@@ -13,11 +14,17 @@ router.post('/recommend', async (req, res) => {
 
         const crops = await Crop.find(query);
 
-        // If no crops in DB, return some defaults with new fields
-        if (crops.length === 0) {
+        // If local database has matching crops, return them
+        if (crops.length > 0) {
+            return res.json(crops);
+        }
+
+        // Otherwise generate personalized recommendations using Gemini AI
+        const aiKey = process.env.GEMINI_API_KEY;
+        if (!aiKey) {
             return res.json([
                 {
-                    name: 'Adaptable Wheat',
+                    name: 'Adaptable Wheat (Fallback, No AI Key)',
                     soilType,
                     season,
                     waterRequirement: 'Moderate',
@@ -28,9 +35,50 @@ router.post('/recommend', async (req, res) => {
             ]);
         }
 
-        res.json(crops);
+        const genAI = new GoogleGenerativeAI(aiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const prompt = `Act as an expert agronomist in India. Recommend 3 highly suitable crops for a farmer given the following conditions:
+Soil Type: ${soilType}
+Season: ${season}
+Region/Location: ${location || 'India'}
+
+Return the response STRICTLY as a raw JSON array of objects. Do not wrap it in markdown block quotes (no \`\`\`json). The objects must have exactly these keys:
+[
+  {
+    "name": "Crop Name",
+    "waterRequirement": "High/Medium/Low",
+    "growingPeriod": "e.g., 90-120 days",
+    "description": "Short explanation of why it fits the soil, season, and region.",
+    "tips": ["Actionable farming tip 1", "Tip 2", "Tip 3"]
+  }
+]`;
+
+        const result = await model.generateContent(prompt);
+        let rawText = result.response.text().trim();
+        
+        // Clean markdown backticks if Gemini still includes them
+        if (rawText.startsWith("```json")) {
+            rawText = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        } else if (rawText.startsWith("```")) {
+            rawText = rawText.replace(/```/g, "").trim();
+        }
+
+        const recommendations = JSON.parse(rawText);
+        res.json(recommendations);
+
     } catch (err) {
-        res.status(500).json({ message: 'Server error', error: err.message });
+        console.error("Gemini crop recommendation error:", err);
+        // Fallback in case Gemini fails or parsing fails
+        res.json([
+            {
+                name: 'Adaptable Wheat (AI Error Fallback)',
+                waterRequirement: 'Moderate',
+                growingPeriod: '120 days',
+                description: 'A resilient variety returned because the AI service is currently overloaded.',
+                tips: ['Ensure proper drainage', 'Apply nitrogen-rich fertilizer']
+            }
+        ]);
     }
 });
 
@@ -47,7 +95,7 @@ router.get('/weather/:location', async (req, res) => {
         const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,precipitation_probability,weather_code&timezone=auto`;
 
         console.log('Fetching from Open-Meteo:', weatherUrl);
-        const response = await axios.get(weatherUrl, { timeout: 8000 });
+        const response = await axios.get(weatherUrl, { timeout: 20000 });
         const data = response.data;
 
         const current = data.current;

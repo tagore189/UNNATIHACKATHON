@@ -6,7 +6,7 @@ import {
     Mic, Volume2, Square
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLocationLanguage } from '../hooks/useLocationLanguage';
+import { useLanguage } from '../context/LanguageContext';
 import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 
 const COMMODITIES = [
@@ -52,9 +52,8 @@ const MarketPricePage = () => {
     const [statistics, setStatistics] = useState(null);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState({ commodity: '', state: '', sort: 'highest' });
-    const [userLoc, setUserLoc] = useState(null); // {lat, lon}
     const [isDemo, setIsDemo] = useState(false);
-    const { userLang } = useLocationLanguage();
+    const { currentLang: userLang } = useLanguage();
     const { speak, stopSpeaking, isSpeaking, startListening, isListening } = useVoiceInteraction(userLang);
 
     // Calculator & Alert states
@@ -78,26 +77,25 @@ const MarketPricePage = () => {
 
                 setIsDemo(pricesRes.data.isDemo || false);
 
-                // Add simulated/calculated coordinates and distance
+                // Add simulated/calculated coordinates (keeping them for mapping if needed later, but removing distance)
                 const enrichedData = pricesRes.data.data.map(item => {
                     const coords = STATE_COORDS[item.state] || { lat: 20 + Math.random() * 5, lon: 75 + Math.random() * 5 };
                     return {
                         ...item,
                         lat: coords.lat,
                         lon: coords.lon,
-                        distance: userLoc ? calculateDistance(userLoc.lat, userLoc.lon, coords.lat, coords.lon) : Math.floor(Math.random() * 500) + 20,
                         arrivals: (item.arrivals === null || isNaN(item.arrivals)) ? null : item.arrivals
                     };
                 });
 
                 setMarketData(enrichedData);
-                applySorting(enrichedData, filters.sort, userLoc);
+                applySorting(enrichedData, filters.sort);
                 setStatistics(statsRes.data);
             } catch (err) { console.error('eNAM error', err); }
             setLoading(false);
         };
         fetchAll();
-    }, [userLoc]);
+    }, []);
 
     const fetchByCrop = async (crop) => {
         setCropLoading(true);
@@ -113,25 +111,13 @@ const MarketPricePage = () => {
         if (tab === 'byCrop') fetchByCrop(selectedCrop);
     }, [tab, selectedCrop]);
 
-    const applySorting = (data, sortType, loc) => {
+    const applySorting = (data, sortType) => {
         let sorted = [...data];
         if (sortType === 'highest') sorted.sort((a, b) => b.modalPrice - a.modalPrice);
         else if (sortType === 'lowest') sorted.sort((a, b) => a.modalPrice - b.modalPrice);
         else if (sortType === 'arrivals') sorted.sort((a, b) => (b.arrivals || 0) - (a.arrivals || 0));
         else if (sortType === 'aboveMsp') sorted.sort((a, b) => (b.priceAnalysis.aboveMSP ? 1 : 0) - (a.priceAnalysis.aboveMSP ? 1 : 0));
-        else if (sortType === 'distance' && loc) sorted.sort((a, b) => a.distance - b.distance);
         setFilteredData(sorted);
-    };
-
-    const handleUseMyLocation = () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition((pos) => {
-                setUserLoc({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-                setFilters(prev => ({ ...prev, sort: 'distance' }));
-            }, (err) => alert("Could not fetch location. Please enable GPS."));
-        } else {
-            alert("Geolocation not supported by browser.");
-        }
     };
 
     const handleFilterChange = async (e) => {
@@ -156,12 +142,11 @@ const MarketPricePage = () => {
                     ...item,
                     lat: coords.lat,
                     lon: coords.lon,
-                    distance: userLoc ? calculateDistance(userLoc.lat, userLoc.lon, coords.lat, coords.lon) : Math.floor(Math.random() * 500) + 20,
                     arrivals: (item.arrivals === null || isNaN(item.arrivals)) ? null : item.arrivals
                 };
             });
 
-            applySorting(enriched, newFilters.sort, userLoc);
+            applySorting(enriched, newFilters.sort);
         } catch (err) { console.error('Filter error', err); }
     };
 
@@ -186,17 +171,16 @@ const MarketPricePage = () => {
 
     const bestMarket = useMemo(() => {
         if (filteredData.length === 0) return null;
-        // Logic: Weight Price 70%, Distance 30% if location available
+        // Logic: Weight Price 100% since distance is removed
         const maxPrice = Math.max(...filteredData.map(d => d.modalPrice)) || 1;
-        const maxDist = Math.max(...filteredData.map(d => d.distance)) || 1;
 
         const dataWithScores = filteredData.map(d => ({
             ...d,
-            score: (d.modalPrice / maxPrice * 0.7) + (userLoc ? (1 - d.distance / maxDist) * 0.3 : 0)
+            score: (d.modalPrice / maxPrice)
         }));
 
         return dataWithScores.sort((a, b) => b.score - a.score)[0];
-    }, [filteredData, userLoc]);
+    }, [filteredData]);
 
     const uniqueStates = [...new Set(marketData.map(item => item.state))].sort();
 
@@ -267,10 +251,10 @@ const MarketPricePage = () => {
                                 Best Market for {bestMarket.commodity}
                             </h3>
                             <p style={{ margin: '0 0 5px 0', color: '#558b2f', fontWeight: '600' }}>Modal Price: <strong>₹{bestMarket.modalPrice}</strong></p>
-                            <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: '#666' }}>State: {bestMarket.state} | {userLoc ? "Distance from You" : "Distance"}: {bestMarket.distance}km</p>
+                            <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: '#666' }}>State: {bestMarket.state}</p>
                             <div style={{ fontSize: '0.85rem', color: '#1b5e20', backgroundColor: '#e8f5e9', padding: '12px', borderRadius: '8px', position: 'relative' }}>
                                 💡 <strong>Advice:</strong> Highest {bestMarket.commodity} price found in {bestMarket.state}.
-                                Farmers growing {bestMarket.commodity} may consider selling in {bestMarket.market} if transport is within ₹{Math.round(bestMarket.modalPrice * 0.05)}/Q.
+                                Farmers growing {bestMarket.commodity} may consider selling in {bestMarket.market}.
 
                                 <button
                                     onClick={() => isSpeaking ? stopSpeaking() : speak(`Advice for ${bestMarket.commodity}. Highest price found in ${bestMarket.state}. Consider selling if transport cost is low.`)}
@@ -379,18 +363,6 @@ const MarketPricePage = () => {
 
                         <div>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontWeight: '700', color: '#444' }}>
-                                <Navigation size={16} color="#e65100" /> Proximity
-                            </label>
-                            <button
-                                onClick={handleUseMyLocation}
-                                style={{ width: '100%', padding: '12px', borderRadius: '10px', border: userLoc ? '2px solid #2e7d32' : '1px solid #ddd', backgroundColor: userLoc ? '#e8f5e9' : '#fff', fontWeight: '700', color: userLoc ? '#2e7d32' : '#666', cursor: 'pointer' }}
-                            >
-                                {userLoc ? "✓ Location Active" : "Use My Location"}
-                            </button>
-                        </div>
-
-                        <div>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontWeight: '700', color: '#444' }}>
                                 <TrendingUp size={16} color="#1565c0" /> Sort By
                             </label>
                             <select name="sort" value={filters.sort} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #eee', backgroundColor: '#fafafa', fontWeight: '600' }} onChange={handleFilterChange}>
@@ -398,7 +370,6 @@ const MarketPricePage = () => {
                                 <option value="lowest">Lowest Price First</option>
                                 <option value="arrivals">Highest Arrivals</option>
                                 <option value="aboveMsp">Priority Selling (Above MSP)</option>
-                                <option value="distance" disabled={!userLoc}>Distance (Closest First)</option>
                             </select>
                         </div>
                     </div>
@@ -407,7 +378,7 @@ const MarketPricePage = () => {
                         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                             <thead style={{ backgroundColor: '#2e7d32', color: 'white' }}>
                                 <tr>
-                                    {['Commodity', 'Market / Mandi', 'State', 'Arrivals (Q)', 'Modal Price', 'MSP Comparison', userLoc ? 'Distance from You' : 'Distance', 'Action'].map(h => (
+                                    {['Commodity', 'Market / Mandi', 'State', 'Arrivals (Q)', 'Modal Price', 'MSP Comparison', 'Action'].map(h => (
                                         <th key={h} style={{ padding: '20px 16px', fontWeight: '700', fontSize: '0.9rem' }}>{h}</th>
                                     ))}
                                 </tr>
@@ -415,7 +386,6 @@ const MarketPricePage = () => {
                             <tbody>
                                 {filteredData.length > 0 ? (
                                     filteredData.map((item, i) => {
-                                        const dist = getDistanceLabel(item.distance);
                                         return (
                                             <tr key={i} style={{ borderBottom: '1px solid #f0f0f0', transition: 'backgroundColor 0.2s' }} className="table-row-hover">
                                                 <td style={{ padding: '18px 16px', fontWeight: '800', color: '#1b5e20' }}>{item.commodity}</td>
@@ -444,11 +414,6 @@ const MarketPricePage = () => {
                                                             </span>
                                                         </div>
                                                     ) : <span style={{ color: '#999', fontSize: '0.75rem' }}>N/A</span>}
-                                                </td>
-                                                <td style={{ padding: '18px 16px' }}>
-                                                    <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: '800', backgroundColor: dist.bg, color: dist.color }}>
-                                                        {item.distance}km ({dist.label})
-                                                    </span>
                                                 </td>
                                                 <td style={{ padding: '18px 16px' }}>
                                                     <button style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #2e7d32', backgroundColor: 'transparent', color: '#2e7d32', fontWeight: '700', fontSize: '0.75rem', cursor: 'pointer' }}>
@@ -556,7 +521,6 @@ const MarketPricePage = () => {
                                             <p style={{ margin: 0, fontSize: '0.88rem', lineHeight: '1.6', color: '#004d40' }}>
                                                 Current {selectedCrop} prices show robust demand in <strong>{cropData.data[0].state}</strong>.
                                                 If you are a high-volume farmer, selling here ({cropData.data[0].market}) can net you ₹{maxCropPrice} per quintal.
-                                                {userLoc ? ` \nDistance from your farm: ${calculateDistance(userLoc.lat, userLoc.lon, (STATE_COORDS[cropData.data[0].state] || { lat: 0 }).lat, (STATE_COORDS[cropData.data[0].state] || { lon: 0 }).lon)}km.` : ''}
                                             </p>
                                         </div>
                                     </div>

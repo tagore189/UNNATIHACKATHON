@@ -63,7 +63,7 @@ router.get('/forecast/:state', async (req, res) => {
 
         try {
             const url = `https://api.open-meteo.com/v1/forecast?latitude=${targetLat}&longitude=${targetLon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,weather_code&current=temperature_2m,relative_humidity_2m,precipitation&timezone=Asia/Kolkata&forecast_days=7`;
-            const response = await axios.get(url, { timeout: 15000 });
+            const response = await axios.get(url, { timeout: 25000 });
             forecastData = response.data;
             dataSource = 'IMD + Open-Meteo Data';
         } catch (apiErr) {
@@ -135,7 +135,7 @@ router.get('/cyclone-alerts', async (req, res) => {
                 // doesn't have a dedicated "severe weather alerts" endpoint without a commercial key.
                 // We simulate alerts based on extreme forecast data (e.g. heavy rain > 50mm, max temp > 42C).
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${region.lat}&longitude=${region.lon}&daily=weather_code,precipitation_sum,temperature_2m_max,windspeed_10m_max&timezone=Asia/Kolkata&forecast_days=3`;
-                const response = await axios.get(url, { timeout: 15000 });
+                const response = await axios.get(url, { timeout: 25000 });
                 const daily = response.data.daily;
 
                 for (let i = 0; i < daily.time.length; i++) {

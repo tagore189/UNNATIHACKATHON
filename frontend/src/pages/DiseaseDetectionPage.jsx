@@ -3,7 +3,7 @@ import { Bug, Camera, ShieldCheck, Leaf, UploadCloud, Loader2, AlertTriangle, Ac
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import axios from 'axios';
-import { useLocationLanguage } from '../hooks/useLocationLanguage';
+import { useLanguage } from '../context/LanguageContext';
 import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 
 const DiseaseDetectionPage = () => {
@@ -14,7 +14,7 @@ const DiseaseDetectionPage = () => {
     const [analysisResult, setAnalysisResult] = useState(null);
     const [error, setError] = useState('');
     const [symptoms, setSymptoms] = useState('');
-    const { userLang } = useLocationLanguage();
+    const { currentLang: userLang } = useLanguage();
     const { speak, stopSpeaking, isSpeaking, startListening, isListening } = useVoiceInteraction(userLang);
 
     const handleImageChange = (e) => {

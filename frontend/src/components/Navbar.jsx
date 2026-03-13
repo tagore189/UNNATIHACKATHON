@@ -2,41 +2,39 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, CloudSun, Sprout, Bug, Droplets,
-    ShieldAlert, TrendingUp, Lightbulb,
+    TrendingUp, Lightbulb,
     FlaskConical, Satellite, Languages, Flower2
 } from 'lucide-react';
-import { useLocationLanguage } from '../hooks/useLocationLanguage';
+import { useLanguage } from '../context/LanguageContext';
 
 const Navbar = () => {
     const location = useLocation();
-    const { userLang, changeLanguage } = useLocationLanguage();
+    const { currentLang, changeLanguage, t } = useLanguage();
 
     const handleLanguageChange = (e) => {
-        const lang = e.target.value;
-        changeLanguage(lang);
+        changeLanguage(e.target.value);
     };
 
     const navLinks = [
-        { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-        { path: '/weather', label: 'Weather', icon: <CloudSun size={20} /> },
-        { path: '/crop-advisor', label: 'Crops', icon: <Sprout size={20} /> },
-        { path: '/market-prices', label: 'eNAM Prices', icon: <TrendingUp size={20} /> },
-        { path: '/soil-health', label: 'Soil Health', icon: <FlaskConical size={20} /> },
-        { path: '/satellite-map', label: 'Bhuvan Maps', icon: <Satellite size={20} /> },
-        { path: '/language-tool', label: 'Language', icon: <Languages size={20} /> },
-        { path: '/disease-detection', label: 'Disease', icon: <Bug size={20} /> },
-        { path: '/irrigation', label: 'Irrigation', icon: <Droplets size={20} /> },
-        { path: '/pest-alerts', label: 'Pest Alerts', icon: <ShieldAlert size={20} /> },
-        { path: '/gardening', label: 'Gardening', icon: <Flower2 size={20} /> },
-        { path: '/sustainability', label: 'Tips', icon: <Lightbulb size={20} /> },
+        { path: '/dashboard', label: t('dashboard'), icon: <LayoutDashboard size={20} /> },
+        { path: '/weather', label: t('weather'), icon: <CloudSun size={20} /> },
+        { path: '/crop-advisor', label: t('crops'), icon: <Sprout size={20} /> },
+        { path: '/market-prices', label: t('enam_prices'), icon: <TrendingUp size={20} /> },
+        { path: '/soil-health', label: t('soil_health'), icon: <FlaskConical size={20} /> },
+        { path: '/satellite-map', label: t('bhuvan_maps'), icon: <Satellite size={20} /> },
+        { path: '/language-tool', label: t('language'), icon: <Languages size={20} /> },
+        { path: '/disease-detection', label: t('disease'), icon: <Bug size={20} /> },
+        { path: '/irrigation', label: t('irrigation'), icon: <Droplets size={20} /> },
+        { path: '/gardening', label: t('gardening'), icon: <Flower2 size={20} /> },
+        { path: '/sustainability', label: t('tips'), icon: <Lightbulb size={20} /> },
     ];
 
     return (
-        <nav className="navbar notranslate">
+        <nav className="navbar">
             <div className="nav-container">
                 <div className="nav-brand">
-                    <Sprout color="#2e7d32" size={28} />
-                    <span className="brand-text">AgriGuard</span>
+                    <Sprout color="var(--primary)" size={26} />
+                    <span className="brand-text">AgriGuard.</span>
                 </div>
                 <div className="nav-links">
                     {navLinks.map((link) => (
@@ -52,22 +50,12 @@ const Navbar = () => {
                 </div>
 
                 <div className="language-container">
-                    <div id="google_translate_element"></div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#2e7d32', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                        <Languages size={18} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Languages size={18} color="var(--text-main)" />
                         <select
-                            className="language-selector notranslate"
-                            value={userLang}
+                            className="language-selector"
+                            value={currentLang}
                             onChange={handleLanguageChange}
-                            style={{
-                                padding: '6px 10px',
-                                borderRadius: '8px',
-                                border: '1px solid #c8e6c9',
-                                backgroundColor: '#f1f8e9',
-                                color: '#2e7d32',
-                                fontWeight: '700',
-                                cursor: 'pointer'
-                            }}
                         >
                             <option value="en">English (Default)</option>
                             <option value="te">తెలుగు (Telugu)</option>

@@ -112,14 +112,6 @@ const Dashboard = () => {
             badge: '💧'
         },
         {
-            title: 'Pest Risk Alerts',
-            icon: <ShieldAlert color="#ff9800" size={32} />,
-            path: '/pest-alerts',
-            desc: 'Local pest outbreak notifications and preventive measures for your area.',
-            metric: 'Alert Active',
-            badge: '🛡️'
-        },
-        {
             title: 'Gardening Assistant',
             icon: <Flower2 color="#e91e63" size={32} />,
             path: '/gardening',
