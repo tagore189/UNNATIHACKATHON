@@ -198,15 +198,37 @@ h3 {
   color: var(--primary-dark);
 }
 
-/* Hide default Google Translate UI elements */
-.VIpgJd-ZVi9od-ORHb-OEVmcd {
+/* ===== Google Translate: Hide all default UI ===== */
+.VIpgJd-ZVi9od-ORHb-OEVmcd,
+.goog-te-banner-frame,
+.goog-te-gadget,
+#goog-gt-tt,
+.goog-tooltip,
+.goog-tooltip:hover,
+.goog-text-highlight {
   display: none !important;
 }
 
-.goog-te-banner-frame {
-  display: none !important;
-}
-
+/* Prevent Google Translate from pushing body down */
 body {
   top: 0px !important;
+  position: static !important;
+}
+
+/* Keep the hidden google_translate_element off-screen but functional */
+#google_translate_element {
+  position: absolute !important;
+  top: -9999px !important;
+  left: -9999px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Remove Google Translate highlight styling on translated text */
+font[style] {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+.goog-te-menu-value span {
+  display: none;
 }

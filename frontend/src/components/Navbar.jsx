@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, CloudSun, Sprout, Bug, Droplets,
@@ -9,35 +9,11 @@ import { useLocationLanguage } from '../hooks/useLocationLanguage';
 
 const Navbar = () => {
     const location = useLocation();
-    const { userLang, changeLanguage, locationLoaded } = useLocationLanguage();
-    const translationAttempted = useRef(false);
-
-    useEffect(() => {
-        // Auto-trigger Google Translate when language is detected
-        if (locationLoaded && userLang !== 'en' && !translationAttempted.current) {
-            const triggerTranslation = setInterval(() => {
-                const select = document.querySelector('.goog-te-combo');
-                if (select) {
-                    select.value = userLang;
-                    select.dispatchEvent(new Event('change', { bubbles: true }));
-                    translationAttempted.current = true;
-                    clearInterval(triggerTranslation);
-                }
-            }, 500); // Check every half second until widget loads
-
-            // Cleanup
-            setTimeout(() => clearInterval(triggerTranslation), 5000);
-        }
-    }, [userLang, locationLoaded]);
+    const { userLang, changeLanguage } = useLocationLanguage();
 
     const handleLanguageChange = (e) => {
         const lang = e.target.value;
         changeLanguage(lang);
-        const select = document.querySelector('.goog-te-combo');
-        if (select) {
-            select.value = lang;
-            select.dispatchEvent(new Event('change', { bubbles: true }));
-        }
     };
 
     const navLinks = [
@@ -56,7 +32,7 @@ const Navbar = () => {
     ];
 
     return (
-        <nav className="navbar">
+        <nav className="navbar notranslate">
             <div className="nav-container">
                 <div className="nav-brand">
                     <Sprout color="#2e7d32" size={28} />
@@ -76,11 +52,11 @@ const Navbar = () => {
                 </div>
 
                 <div className="language-container">
-                    <div id="google_translate_element" style={{ display: 'none' }}></div>
+                    <div id="google_translate_element"></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#2e7d32', fontWeight: 'bold', fontSize: '0.85rem' }}>
                         <Languages size={18} />
                         <select
-                            className="language-selector"
+                            className="language-selector notranslate"
                             value={userLang}
                             onChange={handleLanguageChange}
                             style={{

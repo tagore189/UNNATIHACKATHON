@@ -1,53 +1,59 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
-
-// Map states to their primary local language
-const stateLanguageMap = {
-    'andhra pradesh': 'te',     // Telugu
-    'telangana': 'te',          // Telugu
-    'tamil nadu': 'ta',         // Tamil
-    'karnataka': 'kn',          // Kannada
-    'maharashtra': 'mr',        // Marathi
-    'gujarat': 'gu',            // Gujarati
-    'punjab': 'pa',             // Punjabi
-    'west bengal': 'bn',        // Bengali
-    'odisha': 'or',             // Odia
-    'kerala': 'ml',             // Malayalam
-    'assam': 'as',              // Assamese
-    // Hindi states
-    'uttar pradesh': 'hi',
-    'madhya pradesh': 'hi',
-    'bihar': 'hi',
-    'rajasthan': 'hi',
-    'haryana': 'hi',
-    'jharkhand': 'hi',
-    'chhattisgarh': 'hi',
-    'delhi': 'hi',
-    'uttarakhand': 'hi',
-    'himachal pradesh': 'hi',
-};
 
 export const useLocationLanguage = () => {
     const [userLang, setUserLang] = useState(localStorage.getItem('userLanguage') || 'en');
     const [userState, setUserState] = useState(localStorage.getItem('userState') || '');
-    const [locationLoaded, setLocationLoaded] = useState(!!localStorage.getItem('userState'));
+    const [locationLoaded, setLocationLoaded] = useState(true);
 
+    // On mount, apply stored language
     useEffect(() => {
-        // We've disabled automatic IP discovery to prevent unwanted language switching.
-        // The language will now only be set by the user's manual choice or default to 'en'.
-        if (!localStorage.getItem('userLanguage')) {
-            setUserLang('en');
-            localStorage.setItem('userLanguage', 'en');
+        const stored = localStorage.getItem('userLanguage') || 'en';
+        setUserLang(stored);
+        if (stored !== 'en') {
+            triggerGoogleTranslate(stored);
         }
-        setLocationLoaded(true);
-    }, [locationLoaded]);
+    }, []);
+
+    /**
+     * Reliably trigger Google Translate by finding the hidden .goog-te-combo 
+     * select element and setting its value. Retries every 300ms for up to 5s.
+     */
+    const triggerGoogleTranslate = (langCode) => {
+        if (langCode === 'en') {
+            // Reset to English: remove the googtrans cookie and reload
+            document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+            document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.' + window.location.hostname;
+            // Check if currently translated — if so, reload to reset
+            const currentCookie = document.cookie;
+            if (currentCookie.includes('googtrans') || document.documentElement.classList.contains('translated-ltr') || document.documentElement.classList.contains('translated-rtl')) {
+                window.location.reload();
+            }
+            return;
+        }
+
+        let attempts = 0;
+        const maxAttempts = 20; // 20 * 300ms = 6 seconds
+
+        const tryTranslate = setInterval(() => {
+            attempts++;
+            const select = document.querySelector('.goog-te-combo');
+            if (select) {
+                select.value = langCode;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+                clearInterval(tryTranslate);
+                console.log(`✅ Language changed to: ${langCode}`);
+            } else if (attempts >= maxAttempts) {
+                clearInterval(tryTranslate);
+                console.warn('⚠️ Google Translate widget not found after retries');
+            }
+        }, 300);
+    };
 
     const changeLanguage = (langCode) => {
         setUserLang(langCode);
         localStorage.setItem('userLanguage', langCode);
-        // Force reload to apply language everywhere if needed
-        window.dispatchEvent(new Event('languageChange'));
+        triggerGoogleTranslate(langCode);
     };
 
-    return { userLang, userState, changeLanguage, locationLoaded };
+    return { userLang, userState, changeLanguage, locationLoaded, triggerGoogleTranslate };
 };
