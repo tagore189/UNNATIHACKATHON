@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Sprout, Search, Info, Mic, Volume2, Square } from 'lucide-react';
+import { Sprout, Search, Info, Mic, Volume2, Square, MapPin, Loader } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '../context/LanguageContext';
 import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
@@ -9,8 +9,49 @@ const CropAdvisorPage = () => {
     const [soilData, setSoilData] = useState({ soilType: 'Loamy', season: 'Summer', location: '' });
     const [recommendations, setRecommendations] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [locationLoading, setLocationLoading] = useState(false);
+    const [locationError, setLocationError] = useState('');
     const { currentLang: userLang } = useLanguage();
     const { speak, stopSpeaking, isSpeaking, startListening, isListening } = useVoiceInteraction(userLang);
+
+    // Auto-detect location on page load
+    useEffect(() => {
+        detectLocation();
+    }, []);
+
+    const detectLocation = () => {
+        if (!navigator.geolocation) {
+            setLocationError('Geolocation is not supported by your browser.');
+            return;
+        }
+        setLocationLoading(true);
+        setLocationError('');
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                try {
+                    const res = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+                        { headers: { 'Accept-Language': 'en' } }
+                    );
+                    const data = await res.json();
+                    const addr = data.address;
+                    const place = addr.city || addr.town || addr.village || addr.county || addr.state_district || addr.state || 'Unknown';
+                    setSoilData(prev => ({ ...prev, location: place }));
+                } catch {
+                    setLocationError('Could not fetch location name. Please enter manually.');
+                } finally {
+                    setLocationLoading(false);
+                }
+            },
+            (err) => {
+                setLocationLoading(false);
+                if (err.code === 1) setLocationError('Location access denied. Please enter manually.');
+                else setLocationError('Unable to detect location. Please enter manually.');
+            },
+            { timeout: 10000 }
+        );
+    };
 
     const handleRecommend = async (e) => {
         e.preventDefault();
@@ -35,25 +76,51 @@ const CropAdvisorPage = () => {
                     <h3 style={{ marginBottom: '20px' }}>Input Parameters</h3>
                     <form onSubmit={handleRecommend} style={{ display: 'grid', gap: '20px' }}>
                         <div style={{ display: 'grid', gap: '8px', position: 'relative' }}>
-                            <label style={{ fontWeight: '600' }}>Region / Location</label>
-                            <input
-                                type="text"
-                                value={soilData.location}
-                                placeholder="e.g. Tropical, Arid"
-                                style={{ padding: '12px', borderRadius: '10px', border: '1px solid #ddd', paddingRight: '45px' }}
-                                onChange={(e) => setSoilData({ ...soilData, location: e.target.value })}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => startListening((res) => setSoilData(prev => ({ ...prev, location: res })))}
-                                style={{
-                                    position: 'absolute', right: '10px', bottom: '8px',
-                                    border: 'none', background: 'none', cursor: 'pointer',
-                                    color: isListening ? '#ef5350' : '#2e7d32'
-                                }}
-                            >
-                                <Mic size={20} className={isListening ? 'animate-pulse' : ''} />
-                            </button>
+                            <label style={{ fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <MapPin size={16} color="#2e7d32" /> Region / Location
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    type="text"
+                                    value={soilData.location}
+                                    placeholder={locationLoading ? 'Detecting your location...' : 'e.g. Pune, Nagpur'}
+                                    style={{
+                                        padding: '12px', paddingRight: '80px',
+                                        borderRadius: '10px', border: `1px solid ${locationError ? '#ef5350' : '#ddd'}`,
+                                        width: '100%', boxSizing: 'border-box',
+                                        opacity: locationLoading ? 0.6 : 1,
+                                    }}
+                                    onChange={(e) => setSoilData({ ...soilData, location: e.target.value })}
+                                    disabled={locationLoading}
+                                />
+                                <div style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                    {locationLoading ? (
+                                        <Loader size={18} color="#2e7d32" style={{ animation: 'spin 1s linear infinite' }} />
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            title="Re-detect location"
+                                            onClick={detectLocation}
+                                            style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#2e7d32', padding: '2px' }}
+                                        >
+                                            <MapPin size={18} />
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => startListening((res) => setSoilData(prev => ({ ...prev, location: res })))}
+                                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: isListening ? '#ef5350' : '#2e7d32', padding: '2px' }}
+                                    >
+                                        <Mic size={18} className={isListening ? 'animate-pulse' : ''} />
+                                    </button>
+                                </div>
+                            </div>
+                            {locationError && (
+                                <p style={{ color: '#ef5350', fontSize: '0.78rem', margin: 0 }}>⚠ {locationError}</p>
+                            )}
+                            {!locationLoading && !locationError && soilData.location && (
+                                <p style={{ color: '#2e7d32', fontSize: '0.78rem', margin: 0 }}>📍 Location auto-detected. You can edit if needed.</p>
+                            )}
                         </div>
                         <div style={{ display: 'grid', gap: '8px' }}>
                             <label style={{ fontWeight: '600' }}>Soil Type</label>

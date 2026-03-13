@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 
 // All static UI strings used across the app — English is the base
 const BASE_STRINGS = {
@@ -106,9 +105,6 @@ const BASE_STRINGS = {
 
 const LanguageContext = createContext();
 
-// Cache key for localStorage
-const getCacheKey = (lang) => `agriguard_translations_${lang}`;
-
 const STATE_LANGUAGE_MAP = {
     'Andhra Pradesh': 'te',
     'Telangana': 'te',
@@ -127,13 +123,32 @@ const STATE_LANGUAGE_MAP = {
     'Haryana': 'hi',
     'Delhi': 'hi',
     'Jharkhand': 'hi',
-    'Chhattisgarh': 'hi'
+    'Chhattisgarh': 'hi',
+    'Uttarakhand': 'hi',
+    'Himachal Pradesh': 'hi',
+};
+
+// Human-readable language names for the toast
+const LANG_NAMES = {
+    'en': 'English',
+    'hi': 'हिंदी (Hindi)',
+    'te': 'తెలుగు (Telugu)',
+    'ta': 'தமிழ் (Tamil)',
+    'kn': 'ಕನ್ನಡ (Kannada)',
+    'mr': 'मराठी (Marathi)',
+    'gu': 'ગુજરાતી (Gujarati)',
+    'bn': 'বাংলা (Bengali)',
+    'pa': 'ਪੰਜਾਬੀ (Punjabi)',
+    'ml': 'മലയാളം (Malayalam)',
+    'or': 'ଓଡ଼ିଆ (Odia)',
 };
 
 export const LanguageProvider = ({ children }) => {
     const [currentLang, setCurrentLang] = useState(localStorage.getItem('userLanguage') || 'en');
-    
-    // Always provide the English strings so Google Translate can translate them in the DOM
+    const [detectedState, setDetectedState] = useState(localStorage.getItem('userState') || '');
+    const [isAutoDetecting, setIsAutoDetecting] = useState(false);
+    const [langToast, setLangToast] = useState(null); // { lang, state }
+
     const t = useCallback((key) => BASE_STRINGS[key] || key, []);
 
     const triggerGoogleTranslate = useCallback((langCode) => {
@@ -161,10 +176,18 @@ export const LanguageProvider = ({ children }) => {
         }, 300);
     }, []);
 
-    const changeLanguage = useCallback((langCode) => {
+    const changeLanguage = useCallback((langCode, stateName = '', showToast = false) => {
         setCurrentLang(langCode);
         localStorage.setItem('userLanguage', langCode);
+        if (stateName) {
+            setDetectedState(stateName);
+            localStorage.setItem('userState', stateName);
+        }
         triggerGoogleTranslate(langCode);
+        if (showToast && langCode !== 'en') {
+            setLangToast({ lang: langCode, state: stateName });
+            setTimeout(() => setLangToast(null), 5000);
+        }
     }, [triggerGoogleTranslate]);
 
     // Apply translation on mount if there's a stored language
@@ -175,23 +198,79 @@ export const LanguageProvider = ({ children }) => {
         }
     }, [triggerGoogleTranslate]);
 
-    // Auto-detect language based on IP location if not set yet
+    // Auto-detect language: GPS first, fall back to IP
     useEffect(() => {
-        const autoSetLanguage = async () => {
-            const storedLang = localStorage.getItem('userLanguage');
-            if (!storedLang) {
-                try {
-                    const res = await axios.get('https://ipapi.co/json/');
-                    const stateName = res.data.region;
-                    const detectedLang = STATE_LANGUAGE_MAP[stateName] || 'en';
-                    changeLanguage(detectedLang);
-                    localStorage.setItem('userState', stateName);
-                } catch (err) {
-                    console.warn("Could not auto-detect location for language:", err.message);
-                }
-            }
+        const alreadySet = localStorage.getItem('userLanguage');
+        if (alreadySet) return; // User already has a language set
+
+        setIsAutoDetecting(true);
+
+        const detectByGPS = () => {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) { reject('no-gps'); return; }
+                navigator.geolocation.getCurrentPosition(
+                    async (pos) => {
+                        try {
+                            const { latitude, longitude } = pos.coords;
+                            const res = await fetch(
+                                `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+                                { headers: { 'Accept-Language': 'en' } }
+                            );
+                            const data = await res.json();
+                            const stateName = data.address?.state || '';
+                            resolve(stateName);
+                        } catch { reject('nominatim-fail'); }
+                    },
+                    () => reject('gps-denied'),
+                    { timeout: 8000 }
+                );
+            });
         };
-        autoSetLanguage();
+
+        // Try multiple IP-geo endpoints in sequence — ipapi.co is blocked by most ad-blockers
+        const detectByIP = async () => {
+            const endpoints = [
+                // ipwho.is — lightweight, rarely blocked
+                async () => {
+                    const r = await fetch('https://ipwho.is/', { signal: AbortSignal.timeout(5000) });
+                    const d = await r.json();
+                    return d.region || '';
+                },
+                // freeipapi.com — another reliable free option
+                async () => {
+                    const r = await fetch('https://freeipapi.com/api/json', { signal: AbortSignal.timeout(5000) });
+                    const d = await r.json();
+                    return d.regionName || '';
+                },
+                // geojs.io — minimalistic, very low block rate
+                async () => {
+                    const r = await fetch('https://get.geojs.io/v1/ip/geo.json', { signal: AbortSignal.timeout(5000) });
+                    const d = await r.json();
+                    return d.region || '';
+                },
+            ];
+            for (const attempt of endpoints) {
+                try {
+                    const region = await attempt();
+                    if (region) return region;
+                } catch { /* try next */ }
+            }
+            return ''; // all failed — stay English
+        };
+
+        const runDetection = async () => {
+            let stateName = '';
+            try {
+                stateName = await detectByGPS();
+            } catch {
+                try { stateName = await detectByIP(); } catch { /* stay English */ }
+            }
+            const detectedLang = STATE_LANGUAGE_MAP[stateName] || 'en';
+            changeLanguage(detectedLang, stateName, true); // show toast
+            setIsAutoDetecting(false);
+        };
+
+        runDetection();
     }, [changeLanguage]);
 
     return (
@@ -199,18 +278,39 @@ export const LanguageProvider = ({ children }) => {
             currentLang,
             changeLanguage,
             t,
-            BASE_STRINGS
+            BASE_STRINGS,
+            detectedState,
+            isAutoDetecting,
         }}>
             {children}
+
+            {/* Language detection toast */}
+            {langToast && (
+                <div style={{
+                    position: 'fixed', bottom: '90px', left: '50%', transform: 'translateX(-50%)',
+                    background: 'linear-gradient(135deg, #1b5e20, #2e7d32)',
+                    color: 'white', padding: '14px 24px', borderRadius: '50px',
+                    boxShadow: '0 8px 32px rgba(46,125,50,0.4)',
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    fontSize: '0.95rem', fontWeight: '600', zIndex: 99999,
+                    animation: 'slideUpFade 0.4s ease',
+                }}>
+                    <span style={{ fontSize: '1.3rem' }}>🌐</span>
+                    Language auto-set to <strong style={{ marginLeft: '4px' }}>{LANG_NAMES[langToast.lang]}</strong>
+                    {langToast.state ? ` based on your location (${langToast.state})` : ''}
+                    <button
+                        onClick={() => setLangToast(null)}
+                        style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1.1rem', marginLeft: '6px' }}
+                    >✕</button>
+                </div>
+            )}
         </LanguageContext.Provider>
     );
 };
 
 export const useLanguage = () => {
     const context = useContext(LanguageContext);
-    if (!context) {
-        throw new Error('useLanguage must be used within a LanguageProvider');
-    }
+    if (!context) throw new Error('useLanguage must be used within a LanguageProvider');
     return context;
 };
 

@@ -13,12 +13,14 @@ import SatelliteMapPage from './pages/SatelliteMapPage';
 import LanguagePage from './pages/LanguagePage';
 import GardeningPage from './pages/GardeningPage';
 import Navbar from './components/Navbar';
+import VoiceBot from './components/VoiceBot';
 import { LanguageProvider } from './context/LanguageContext';
 
 const AppLayout = ({ children }) => (
   <>
     <Navbar />
     {children}
+    <VoiceBot />
   </>
 );
 

@@ -43,10 +43,18 @@ const SatelliteMapPage = () => {
         const fetchLayers = async () => {
             try {
                 const response = await axios.get('http://localhost:5000/api/bhuvan/layers');
-                setLayers(response.data.layers);
-                // Select first layer by default if available
-                if (response.data.layers.length > 0) {
-                    handleLayerSelect(response.data.layers[0].id);
+                const fetchedLayers = response.data.layers || [];
+                setLayers(fetchedLayers);
+                // Select first layer by default — inline to avoid stale closure crash
+                if (fetchedLayers.length > 0) {
+                    const firstId = fetchedLayers[0].id;
+                    setSelectedLayer(firstId);
+                    try {
+                        const detail = await axios.get(`http://localhost:5000/api/bhuvan/tile-url/${firstId}`);
+                        setLayerDetail(detail.data.layer);
+                    } catch (e) {
+                        console.error('Layer detail error:', e);
+                    }
                 }
             } catch (err) {
                 console.error('Bhuvan layers error:', err);
@@ -55,6 +63,7 @@ const SatelliteMapPage = () => {
             }
         };
         fetchLayers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleLayerSelect = async (layerId) => {
@@ -226,16 +235,16 @@ const SatelliteMapPage = () => {
                         style={{ height: '100%', width: '100%' }}
                         zoomControl={true}
                     >
-                        <MapViewHandler center={mapCenter} zoom={zoom} />
+                        <>
+                            <MapViewHandler center={mapCenter} zoom={zoom} />
 
-                        {/* Base Layers */}
-                        <TileLayer
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        />
+                            {/* Base Layers */}
+                            <TileLayer
+                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            />
 
-                        {/* Bhuvan Satellite Layer (WMS) */}
-                        <AnimatePresence>
+                            {/* Bhuvan Satellite Layer (WMS) — no AnimatePresence inside Leaflet */}
                             {layerDetail && (
                                 <WMSTileLayer
                                     key={layerDetail.id}
@@ -248,14 +257,14 @@ const SatelliteMapPage = () => {
                                     attribution="ISRO Bhuvan"
                                 />
                             )}
-                        </AnimatePresence>
 
-                        {/* User Location Marker */}
-                        {userLocation && (
-                            <Marker position={userLocation}>
-                                <Popup>Your Current Location (Farm Center)</Popup>
-                            </Marker>
-                        )}
+                            {/* User Location Marker */}
+                            {userLocation && (
+                                <Marker position={userLocation}>
+                                    <Popup>Your Current Location (Farm Center)</Popup>
+                                </Marker>
+                            )}
+                        </>
                     </MapContainer>
 
                     {/* Map Overlays */}
