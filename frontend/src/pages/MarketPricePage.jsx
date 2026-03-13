@@ -2,9 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
     TrendingUp, Search, MapPin, Tag, ArrowUpRight, ArrowDownRight,
-    BarChart3, Globe, Info, Calculator, Navigation, Bell, AlertCircle, TrendingDown
+    BarChart3, Globe, Info, Calculator, Navigation, Bell, AlertCircle, TrendingDown,
+    Mic, Volume2, Square
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocationLanguage } from '../hooks/useLocationLanguage';
+import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 
 const COMMODITIES = [
     'Wheat', 'Rice (Paddy)', 'Maize', 'Bajra', 'Jowar',
@@ -51,6 +54,8 @@ const MarketPricePage = () => {
     const [filters, setFilters] = useState({ commodity: '', state: '', sort: 'highest' });
     const [userLoc, setUserLoc] = useState(null); // {lat, lon}
     const [isDemo, setIsDemo] = useState(false);
+    const { userLang } = useLocationLanguage();
+    const { speak, stopSpeaking, isSpeaking, startListening, isListening } = useVoiceInteraction(userLang);
 
     // Calculator & Alert states
     const [calc, setCalc] = useState({ quantity: 10 });
@@ -160,6 +165,25 @@ const MarketPricePage = () => {
         } catch (err) { console.error('Filter error', err); }
     };
 
+    const handleVoiceFilter = (field) => {
+        startListening((result) => {
+            const lowerResult = result.toLowerCase();
+            let matchedValue = '';
+
+            if (field === 'commodity') {
+                matchedValue = COMMODITIES.find(c => lowerResult.includes(c.toLowerCase())) || '';
+            } else if (field === 'state') {
+                matchedValue = uniqueStates.find(s => lowerResult.includes(s.toLowerCase())) || '';
+            }
+
+            if (matchedValue) {
+                handleFilterChange({ target: { name: field, value: matchedValue } });
+            } else {
+                alert(`Could not match "${result}" to a ${field}. Please try again.`);
+            }
+        });
+    };
+
     const bestMarket = useMemo(() => {
         if (filteredData.length === 0) return null;
         // Logic: Weight Price 70%, Distance 30% if location available
@@ -244,9 +268,22 @@ const MarketPricePage = () => {
                             </h3>
                             <p style={{ margin: '0 0 5px 0', color: '#558b2f', fontWeight: '600' }}>Modal Price: <strong>₹{bestMarket.modalPrice}</strong></p>
                             <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: '#666' }}>State: {bestMarket.state} | {userLoc ? "Distance from You" : "Distance"}: {bestMarket.distance}km</p>
-                            <div style={{ fontSize: '0.85rem', color: '#1b5e20', backgroundColor: '#e8f5e9', padding: '8px 12px', borderRadius: '8px' }}>
+                            <div style={{ fontSize: '0.85rem', color: '#1b5e20', backgroundColor: '#e8f5e9', padding: '12px', borderRadius: '8px', position: 'relative' }}>
                                 💡 <strong>Advice:</strong> Highest {bestMarket.commodity} price found in {bestMarket.state}.
                                 Farmers growing {bestMarket.commodity} may consider selling in {bestMarket.market} if transport is within ₹{Math.round(bestMarket.modalPrice * 0.05)}/Q.
+
+                                <button
+                                    onClick={() => isSpeaking ? stopSpeaking() : speak(`Advice for ${bestMarket.commodity}. Highest price found in ${bestMarket.state}. Consider selling if transport cost is low.`)}
+                                    style={{
+                                        position: 'absolute', top: '8px', right: '8px',
+                                        backgroundColor: isSpeaking ? '#ef5350' : '#2e7d32',
+                                        color: 'white', border: 'none', borderRadius: '50%',
+                                        width: '32px', height: '32px', display: 'flex',
+                                        alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                                    }}
+                                >
+                                    {isSpeaking ? <Square size={14} fill="white" /> : <Volume2 size={14} />}
+                                </button>
                             </div>
                         </div>
                     </motion.div>
@@ -306,20 +343,40 @@ const MarketPricePage = () => {
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontWeight: '700', color: '#444' }}>
                                 <Tag size={16} color="#2e7d32" /> Select Commodity
                             </label>
-                            <select name="commodity" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #eee', backgroundColor: '#fafafa', fontWeight: '600' }} onChange={handleFilterChange}>
-                                <option value="">All Commodities</option>
-                                {COMMODITIES.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
+                            <div style={{ position: 'relative' }}>
+                                <select name="commodity" value={filters.commodity} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #eee', backgroundColor: '#fafafa', fontWeight: '600' }} onChange={handleFilterChange}>
+                                    <option value="">All Commodities</option>
+                                    {COMMODITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                                <button
+                                    onClick={() => handleVoiceFilter('commodity')}
+                                    style={{ position: 'absolute', right: '35px', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer' }}
+                                    title="Voice Search"
+                                >
+                                    <Mic size={18} color={isListening ? "#ef5350" : "#2e7d32"} className={isListening ? "animate-pulse" : ""} />
+                                </button>
+                            </div>
                         </div>
+
                         <div>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontWeight: '700', color: '#444' }}>
                                 <MapPin size={16} color="#2e7d32" /> Select State
                             </label>
-                            <select name="state" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #eee', backgroundColor: '#fafafa', fontWeight: '600' }} onChange={handleFilterChange}>
-                                <option value="">All India</option>
-                                {uniqueStates.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
+                            <div style={{ position: 'relative' }}>
+                                <select name="state" value={filters.state} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #eee', backgroundColor: '#fafafa', fontWeight: '600' }} onChange={handleFilterChange}>
+                                    <option value="">All States</option>
+                                    {uniqueStates.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                                <button
+                                    onClick={() => handleVoiceFilter('state')}
+                                    style={{ position: 'absolute', right: '35px', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer' }}
+                                    title="Voice Search"
+                                >
+                                    <Mic size={18} color={isListening ? "#ef5350" : "#2e7d32"} className={isListening ? "animate-pulse" : ""} />
+                                </button>
+                            </div>
                         </div>
+
                         <div>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontWeight: '700', color: '#444' }}>
                                 <Navigation size={16} color="#e65100" /> Proximity
@@ -331,6 +388,7 @@ const MarketPricePage = () => {
                                 {userLoc ? "✓ Location Active" : "Use My Location"}
                             </button>
                         </div>
+
                         <div>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontWeight: '700', color: '#444' }}>
                                 <TrendingUp size={16} color="#1565c0" /> Sort By
@@ -355,51 +413,57 @@ const MarketPricePage = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredData.length > 0 ? filteredData.map((item, i) => {
-                                    const dist = getDistanceLabel(item.distance);
-                                    return (
-                                        <tr key={i} style={{ borderBottom: '1px solid #f0f0f0', transition: 'backgroundColor 0.2s' }} className="table-row-hover">
-                                            <td style={{ padding: '18px 16px', fontWeight: '800', color: '#1b5e20' }}>{item.commodity}</td>
-                                            <td style={{ padding: '18px 16px' }}>
-                                                <div style={{ fontWeight: '700' }}>{item.market}</div>
-                                                <div style={{ fontSize: '0.75rem', color: '#888' }}>eNAM Integrated</div>
-                                            </td>
-                                            <td style={{ padding: '18px 16px', color: '#444', fontWeight: '600' }}>{item.state}</td>
-                                            <td style={{ padding: '18px 16px', fontWeight: '700' }}>
-                                                {item.arrivals ? item.arrivals.toLocaleString() : <span style={{ color: '#ccc', fontStyle: 'italic' }}>Data Not Available</span>}
-                                            </td>
-                                            <td style={{ padding: '18px 16px', fontWeight: '900', color: '#2e7d32', fontSize: '1.1rem', backgroundColor: '#f9fff9' }}>
-                                                ₹{item.modalPrice}
-                                            </td>
-                                            <td style={{ padding: '18px 16px' }}>
-                                                {item.priceAnalysis.aboveMSP !== null ? (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                        <span style={{
-                                                            display: 'inline-flex', alignItems: 'center', gap: '4px',
-                                                            padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800',
-                                                            backgroundColor: item.priceAnalysis.aboveMSP ? '#e8f5e9' : '#ffebee',
-                                                            color: item.priceAnalysis.aboveMSP ? '#2e7d32' : '#c62828'
-                                                        }}>
-                                                            {item.priceAnalysis.aboveMSP ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                                            {item.priceAnalysis.vsMSP} MSP
-                                                        </span>
-                                                    </div>
-                                                ) : <span style={{ color: '#999', fontSize: '0.75rem' }}>N/A</span>}
-                                            </td>
-                                            <td style={{ padding: '18px 16px' }}>
-                                                <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: '800', backgroundColor: dist.bg, color: dist.color }}>
-                                                    {item.distance}km ({dist.label})
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '18px 16px' }}>
-                                                <button style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #2e7d32', backgroundColor: 'transparent', color: '#2e7d32', fontWeight: '700', fontSize: '0.75rem', cursor: 'pointer' }}>
-                                                    Sell Here
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                }) : (
-                                    <tr><td colSpan="8" style={{ padding: '60px', textAlign: 'center', color: '#999' }}>No data found for selected filters.</td></tr>
+                                {filteredData.length > 0 ? (
+                                    filteredData.map((item, i) => {
+                                        const dist = getDistanceLabel(item.distance);
+                                        return (
+                                            <tr key={i} style={{ borderBottom: '1px solid #f0f0f0', transition: 'backgroundColor 0.2s' }} className="table-row-hover">
+                                                <td style={{ padding: '18px 16px', fontWeight: '800', color: '#1b5e20' }}>{item.commodity}</td>
+                                                <td style={{ padding: '18px 16px' }}>
+                                                    <div style={{ fontWeight: '700' }}>{item.market}</div>
+                                                    <div style={{ fontSize: '0.75rem', color: '#888' }}>eNAM Integrated</div>
+                                                </td>
+                                                <td style={{ padding: '18px 16px', color: '#444', fontWeight: '600' }}>{item.state}</td>
+                                                <td style={{ padding: '18px 16px', fontWeight: '700' }}>
+                                                    {item.arrivals ? item.arrivals.toLocaleString() : <span style={{ color: '#ccc', fontStyle: 'italic' }}>Data Not Available</span>}
+                                                </td>
+                                                <td style={{ padding: '18px 16px', fontWeight: '900', color: '#2e7d32', fontSize: '1.1rem', backgroundColor: '#f9fff9' }}>
+                                                    ₹{item.modalPrice}
+                                                </td>
+                                                <td style={{ padding: '18px 16px' }}>
+                                                    {item.priceAnalysis.aboveMSP !== null ? (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                            <span style={{
+                                                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                                                padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800',
+                                                                backgroundColor: item.priceAnalysis.aboveMSP ? '#e8f5e9' : '#ffebee',
+                                                                color: item.priceAnalysis.aboveMSP ? '#2e7d32' : '#c62828'
+                                                            }}>
+                                                                {item.priceAnalysis.aboveMSP ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                                                {item.priceAnalysis.vsMSP} MSP
+                                                            </span>
+                                                        </div>
+                                                    ) : <span style={{ color: '#999', fontSize: '0.75rem' }}>N/A</span>}
+                                                </td>
+                                                <td style={{ padding: '18px 16px' }}>
+                                                    <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: '800', backgroundColor: dist.bg, color: dist.color }}>
+                                                        {item.distance}km ({dist.label})
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '18px 16px' }}>
+                                                    <button style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #2e7d32', backgroundColor: 'transparent', color: '#2e7d32', fontWeight: '700', fontSize: '0.75rem', cursor: 'pointer' }}>
+                                                        Sell Here
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td colSpan="8" style={{ padding: '60px', textAlign: 'center', color: '#999' }}>
+                                            No data found for selected filters.
+                                        </td>
+                                    </tr>
                                 )}
                             </tbody>
                         </table>

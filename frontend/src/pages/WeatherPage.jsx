@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { CloudSun, Droplets, Thermometer, AlertTriangle, CloudRain, Wind, MapPin, Calendar, CheckCircle2, Info, Loader2, Gauge } from 'lucide-react';
+import { CloudSun, Droplets, Thermometer, AlertTriangle, CloudRain, Wind, MapPin, Calendar, CheckCircle2, Info, Loader2, Gauge, Volume2, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocationLanguage } from '../hooks/useLocationLanguage';
+import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 
 const MAJOR_CITIES = [
     { id: 'hyderabad', name: 'Hyderabad', lat: 17.3850, lon: 78.4867 },
@@ -19,6 +21,8 @@ const WeatherPage = () => {
     const [loading, setLoading] = useState(true);
     const [states, setStates] = useState([]);
     const [error, setError] = useState(null);
+    const { userLang } = useLocationLanguage();
+    const { speak, stopSpeaking, isSpeaking } = useVoiceInteraction(userLang);
 
     useEffect(() => {
         const fetchStates = async () => {
@@ -173,6 +177,27 @@ const WeatherPage = () => {
                                     <CheckCircle2 color="#2e7d32" /> Farmer Action Plan
                                 </h2>
                                 <p style={{ color: '#558b2f', marginTop: '5px' }}>Personalized recommendations based on local moisture & temp</p>
+
+                                <button
+                                    onClick={() => isSpeaking ? stopSpeaking() : speak(`Farmer Action Plan. ${weatherData.advisory.join('. ')}`)}
+                                    style={{
+                                        marginTop: '15px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        padding: '8px 16px',
+                                        borderRadius: '25px',
+                                        border: 'none',
+                                        backgroundColor: isSpeaking ? '#ef5350' : '#2e7d32',
+                                        color: 'white',
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                                    }}
+                                >
+                                    {isSpeaking ? <Square size={16} fill="white" /> : <Volume2 size={16} />}
+                                    {isSpeaking ? 'Stop Listening' : 'Listen to Advice'}
+                                </button>
                             </div>
                             <div style={{ textAlign: 'right' }}>
                                 <span style={{ fontSize: '0.8rem', color: '#888', display: 'block' }}>Data Source: {weatherData.source}</span>

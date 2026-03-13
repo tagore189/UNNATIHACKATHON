@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Sprout, Search, Info } from 'lucide-react';
+import { Sprout, Search, Info, Mic, Volume2, Square } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useLocationLanguage } from '../hooks/useLocationLanguage';
+import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 
 const CropAdvisorPage = () => {
     const [soilData, setSoilData] = useState({ soilType: 'Loamy', season: 'Summer', location: '' });
     const [recommendations, setRecommendations] = useState([]);
     const [loading, setLoading] = useState(false);
+    const { userLang } = useLocationLanguage();
+    const { speak, stopSpeaking, isSpeaking, startListening, isListening } = useVoiceInteraction(userLang);
 
     const handleRecommend = async (e) => {
         e.preventDefault();
@@ -30,14 +34,26 @@ const CropAdvisorPage = () => {
                 <aside className="glass-card" style={{ padding: '30px', height: 'fit-content' }}>
                     <h3 style={{ marginBottom: '20px' }}>Input Parameters</h3>
                     <form onSubmit={handleRecommend} style={{ display: 'grid', gap: '20px' }}>
-                        <div style={{ display: 'grid', gap: '8px' }}>
+                        <div style={{ display: 'grid', gap: '8px', position: 'relative' }}>
                             <label style={{ fontWeight: '600' }}>Region / Location</label>
                             <input
                                 type="text"
+                                value={soilData.location}
                                 placeholder="e.g. Tropical, Arid"
-                                style={{ padding: '12px', borderRadius: '10px', border: '1px solid #ddd' }}
+                                style={{ padding: '12px', borderRadius: '10px', border: '1px solid #ddd', paddingRight: '45px' }}
                                 onChange={(e) => setSoilData({ ...soilData, location: e.target.value })}
                             />
+                            <button
+                                type="button"
+                                onClick={() => startListening((res) => setSoilData(prev => ({ ...prev, location: res })))}
+                                style={{
+                                    position: 'absolute', right: '10px', bottom: '8px',
+                                    border: 'none', background: 'none', cursor: 'pointer',
+                                    color: isListening ? '#ef5350' : '#2e7d32'
+                                }}
+                            >
+                                <Mic size={20} className={isListening ? 'animate-pulse' : ''} />
+                            </button>
                         </div>
                         <div style={{ display: 'grid', gap: '8px' }}>
                             <label style={{ fontWeight: '600' }}>Soil Type</label>
@@ -94,15 +110,33 @@ const CropAdvisorPage = () => {
                                         </div>
                                     </div>
                                     <p style={{ fontSize: '1.1rem', color: '#444', marginBottom: '20px' }}>{crop.description}</p>
-                                    <div style={{ backgroundColor: '#f1f8e9', padding: '15px', borderRadius: '12px' }}>
+                                    <div style={{ backgroundColor: '#f1f8e9', padding: '15px', borderRadius: '12px', position: 'relative' }}>
                                         <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', color: '#1b5e20' }}>
                                             <Info size={18} /> Expert Growing Tips:
                                         </h4>
-                                        <ul style={{ paddingLeft: '20px', color: '#2e7d32' }}>
+                                        <ul style={{ paddingLeft: '20px', color: '#2e7d32', marginBottom: 0 }}>
                                             {crop.tips.map((tip, j) => (
                                                 <li key={j} style={{ marginBottom: '5px' }}>{tip}</li>
                                             ))}
                                         </ul>
+                                        <button
+                                            onClick={() => {
+                                                if (isSpeaking) stopSpeaking();
+                                                else {
+                                                    const text = `${crop.name}. ${crop.description}. Expert tips: ${crop.tips.join('. ')}`;
+                                                    speak(text);
+                                                }
+                                            }}
+                                            style={{
+                                                position: 'absolute', top: '15px', right: '15px',
+                                                backgroundColor: isSpeaking ? '#ef5350' : '#2e7d32',
+                                                color: 'white', border: 'none', borderRadius: '50%',
+                                                width: '32px', height: '32px', display: 'flex',
+                                                alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                                            }}
+                                        >
+                                            {isSpeaking ? <Square size={14} fill="white" /> : <Volume2 size={14} />}
+                                        </button>
                                     </div>
                                 </motion.div>
                             ))}

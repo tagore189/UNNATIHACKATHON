@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Bug, Camera, ShieldCheck, Leaf, UploadCloud, Loader2, AlertTriangle, Activity, CalendarCheck, Info, Thermometer } from 'lucide-react';
+import { Bug, Camera, ShieldCheck, Leaf, UploadCloud, Loader2, AlertTriangle, Activity, CalendarCheck, Info, Thermometer, Mic, Volume2, Square } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import axios from 'axios';
+import { useLocationLanguage } from '../hooks/useLocationLanguage';
+import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 
 const DiseaseDetectionPage = () => {
     const [mode, setMode] = useState('farming'); // 'farming' or 'gardening'
@@ -11,6 +13,9 @@ const DiseaseDetectionPage = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [analysisResult, setAnalysisResult] = useState(null);
     const [error, setError] = useState('');
+    const [symptoms, setSymptoms] = useState('');
+    const { userLang } = useLocationLanguage();
+    const { speak, stopSpeaking, isSpeaking, startListening, isListening } = useVoiceInteraction(userLang);
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
@@ -34,6 +39,7 @@ const DiseaseDetectionPage = () => {
         const formData = new FormData();
         formData.append('image', selectedImage);
         formData.append('mode', mode);
+        formData.append('symptoms', symptoms);
 
         try {
             const response = await axios.post('http://localhost:5000/api/analyze-plant', formData, {
@@ -157,6 +163,35 @@ const DiseaseDetectionPage = () => {
                         </div>
                     )}
 
+                    {/* Symptom Description with Voice Input */}
+                    <div style={{ marginBottom: '25px', position: 'relative' }}>
+                        <label style={{ display: 'block', textAlign: 'left', marginBottom: '8px', fontWeight: 'bold', color: '#2e7d32' }}>
+                            Describe symptoms (Optional):
+                        </label>
+                        <textarea
+                            value={symptoms}
+                            onChange={(e) => setSymptoms(e.target.value)}
+                            placeholder="Example: Yellow spots on the edges of the leaf..."
+                            style={{
+                                width: '100%', padding: '15px', borderRadius: '12px',
+                                border: '2px solid #e0e0e0', minHeight: '100px',
+                                fontStyle: isListening ? 'italic' : 'normal'
+                            }}
+                        />
+                        <button
+                            onClick={() => startListening((res) => setSymptoms(prev => prev + ' ' + res))}
+                            style={{
+                                position: 'absolute', right: '15px', bottom: '15px',
+                                background: isListening ? '#ef5350' : '#2e7d32',
+                                color: 'white', border: 'none', borderRadius: '50%',
+                                width: '36px', height: '36px', display: 'flex',
+                                alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                            }}
+                        >
+                            <Mic size={18} className={isListening ? 'animate-pulse' : ''} />
+                        </button>
+                    </div>
+
                     <button
                         className="btn-primary"
                         onClick={handleAnalyze}
@@ -228,6 +263,20 @@ const DiseaseDetectionPage = () => {
                                     }}>
                                         Risk: {analysisResult.spreadRisk}
                                     </div>
+                                    <button
+                                        onClick={() => {
+                                            if (isSpeaking) stopSpeaking();
+                                            else {
+                                                const textToRead = `${analysisResult.diseaseName}. ${analysisResult.description}. Treatment plan includes ${analysisResult.treatmentSuggestions.join(', ')}.`;
+                                                speak(textToRead);
+                                            }
+                                        }}
+                                        className="btn-primary"
+                                        style={{ padding: '8px 16px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                    >
+                                        {isSpeaking ? <Square size={16} fill="white" /> : <Volume2 size={16} />}
+                                        {isSpeaking ? 'Stop' : 'Listen Report'}
+                                    </button>
                                 </div>
                             </div>
 

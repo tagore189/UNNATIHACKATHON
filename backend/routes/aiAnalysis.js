@@ -142,9 +142,11 @@ router.post('/', upload.single('image'), async (req, res) => {
     // LOG: Calling Gemini model
     console.log(`[${requestId}] 📡 Calling Gemini model...`);
     const imagePart = fileToGenerativePart(req.file);
+    const symptoms = req.body.symptoms || '';
 
     const prompt = mode === 'farming' ? `
       As an expert crop pathologist, perform a visual analysis of this leaf image.
+      ${symptoms ? `The farmer reported these symptoms: "${symptoms}".` : ''}
       Identify signs of:
       - Circular rings or dark brown spots (Blight)
       - Rusty orange or yellow pustules (Rust)
